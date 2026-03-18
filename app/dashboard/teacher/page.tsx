@@ -250,8 +250,8 @@ export default function TeacherDashboard() {
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-hidden p-4 md:p-6 lg:p-8 flex items-center justify-center">
-        <div className="mx-auto grid w-full max-w-7xl h-full min-h-0 gap-6 lg:grid-cols-3 items-stretch">
+      <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 lg:overflow-hidden lg:flex lg:items-center lg:justify-center">
+        <div className="mx-auto grid w-full max-w-7xl min-h-0 gap-6 lg:h-full lg:grid-cols-3 items-stretch">
           {/* 左：班級與設定 */}
           <div className="rounded-2xl border border-gray-200/60 bg-white/90 p-6 shadow-lg backdrop-blur-sm min-h-0">
             <div className="mb-4 flex items-center gap-3">

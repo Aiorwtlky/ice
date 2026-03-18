@@ -72,6 +72,14 @@ export default function GameFrame({
   const dockBtnClass =
     'inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-semibold shadow-md transition active:scale-[0.98] sm:min-h-[48px] sm:gap-2 sm:px-4 landscape:min-h-[40px] landscape:max-h-[44px] landscape:py-0 landscape:px-3 landscape:text-[13px]';
 
+  const FooterInner = (
+    <div className="space-y-0.5 text-center text-sm text-gray-500">
+      <p>教育部帶動中小學計畫</p>
+      <p>Google Developer Groups on Campus NTUB</p>
+      <p className="text-xs text-gray-400">© 2026</p>
+    </div>
+  );
+
   return (
     <div className="flex h-screen min-h-[480px] flex-col overflow-hidden bg-[#FDFBF7]">
       <header className="z-50 flex h-14 shrink-0 items-center justify-between border-b border-gray-200/80 bg-white/95 px-4 shadow-sm backdrop-blur-sm md:px-6">
@@ -120,8 +128,8 @@ export default function GameFrame({
       <main
         className={
           mainLayout === 'fill'
-            ? `flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-5 ${showDock ? 'max-lg:pb-[4.75rem] max-lg:landscape:pb-[4rem] lg:pb-28' : ''}`
-            : `flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-4 md:p-6 ${showDock ? 'max-lg:pb-[4.75rem] max-lg:landscape:pb-[4rem] lg:pb-28' : ''}`
+            ? `flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-5 ${showDock ? 'max-lg:pb-32 max-lg:landscape:pb-28 lg:pb-28' : ''}`
+            : `flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-4 md:p-6 ${showDock ? 'max-lg:pb-32 max-lg:landscape:pb-28 lg:pb-28' : ''}`
         }
       >
         {mainLayout === 'fill' ? (
@@ -137,22 +145,15 @@ export default function GameFrame({
         )}
       </main>
 
-      <footer className="shrink-0 border-t border-gray-200/80 bg-white/95 py-3 backdrop-blur-sm">
-        <div className="space-y-0.5 text-center text-sm text-gray-500">
-          <p>教育部帶動中小學計畫</p>
-          <p>Google Developer Groups on Campus NTUB</p>
-          <p className="text-xs text-gray-400">© 2026</p>
-        </div>
+      {/* 桌機：一般頁尾（底部工具列置中浮動） */}
+      <footer className="shrink-0 border-t border-gray-200/80 bg-white/95 py-2 backdrop-blur-sm max-lg:hidden">
+        {FooterInner}
       </footer>
 
-      {/* 小螢幕：底部全寬橫列；桌機寬螢：置中工具列，避免遊戲區蓋住左右下角按鈕 */}
-      {showDock && (
-        <>
-          <div
-            className="fixed inset-x-0 z-40 flex items-stretch gap-2 border-t border-gray-200/90 bg-white/98 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm max-lg:bottom-[3.5rem] max-lg:landscape:bottom-[3.25rem] max-lg:landscape:py-1.5 max-lg:landscape:gap-1.5 lg:hidden"
-            role="toolbar"
-            aria-label="遊戲操作"
-          >
+      {/* 小螢幕：底部固定區（工具列 + 頁尾）一起，避免互相壓到 */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200/90 bg-white/98 backdrop-blur-sm lg:hidden">
+        {showDock && (
+          <div className="flex items-stretch gap-2 px-2 py-2">
             {effectiveShowBack && onBack && (
               <button type="button" onClick={onBack} className={`${dockBtnClass} border-2 border-gray-300 bg-white text-gray-800 hover:bg-gray-50`} aria-label="返回">
                 <Home className="h-5 w-5 shrink-0 landscape:h-4 landscape:w-4" />
@@ -166,38 +167,45 @@ export default function GameFrame({
               </button>
             )}
           </div>
-          <div
-            className="pointer-events-none fixed inset-x-0 bottom-[3.5rem] z-40 hidden justify-center px-4 lg:flex"
-            role="toolbar"
-            aria-label="遊戲操作"
-          >
-            <div className="pointer-events-auto flex items-stretch gap-3 rounded-2xl border border-gray-200/90 bg-white/98 p-2 shadow-lg backdrop-blur-sm">
-              {effectiveShowBack && onBack && (
-                <button
-                  type="button"
-                  onClick={onBack}
-                  className="inline-flex h-12 min-h-[48px] min-w-[7rem] items-center justify-center gap-2 rounded-xl border-2 border-gray-300 bg-white px-6 text-base font-semibold text-gray-800 shadow-sm hover:bg-gray-50"
-                  aria-label="返回"
-                >
-                  <Home className="h-5 w-5 shrink-0" />
-                  返回
-                </button>
-              )}
-              {showHelp && (
-                <button
-                  type="button"
-                  onClick={handleHelp}
-                  className="inline-flex h-12 min-h-[48px] min-w-[7rem] items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 text-base font-semibold text-white shadow-sm hover:bg-amber-600"
-                  aria-label="求助"
-                  title={helpTip}
-                >
-                  <HelpCircle className="h-5 w-5 shrink-0" />
-                  求助
-                </button>
-              )}
-            </div>
+        )}
+        <div className="border-t border-gray-200/70 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <div className="space-y-0.5 text-center text-[12px] leading-tight text-gray-500">
+            <p>教育部帶動中小學計畫</p>
+            <p>Google Developer Groups on Campus NTUB</p>
+            <p className="text-[11px] text-gray-400">© 2026</p>
           </div>
-        </>
+        </div>
+      </div>
+
+      {/* 桌機寬螢：置中工具列 */}
+      {showDock && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-14 z-40 hidden justify-center px-4 lg:flex">
+          <div className="pointer-events-auto flex items-stretch gap-3 rounded-2xl border border-gray-200/90 bg-white/98 p-2 shadow-lg backdrop-blur-sm">
+            {effectiveShowBack && onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex h-12 min-h-[48px] min-w-[7rem] items-center justify-center gap-2 rounded-xl border-2 border-gray-300 bg-white px-6 text-base font-semibold text-gray-800 shadow-sm hover:bg-gray-50"
+                aria-label="返回"
+              >
+                <Home className="h-5 w-5 shrink-0" />
+                返回
+              </button>
+            )}
+            {showHelp && (
+              <button
+                type="button"
+                onClick={handleHelp}
+                className="inline-flex h-12 min-h-[48px] min-w-[7rem] items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 text-base font-semibold text-white shadow-sm hover:bg-amber-600"
+                aria-label="求助"
+                title={helpTip}
+              >
+                <HelpCircle className="h-5 w-5 shrink-0" />
+                求助
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {helpOpen && !onHelp && (
