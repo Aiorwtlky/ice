@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fdfbf7;
+  --foreground: #0a0a0a;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Tech-style flowing background animation */
+@keyframes flow {
+  0%, 100% {
+    transform: translate(0%, 0%) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translate(3%, 2%) rotate(2deg) scale(1.02);
+  }
+  50% {
+    transform: translate(0%, 3%) rotate(0deg) scale(1);
+  }
+  75% {
+    transform: translate(-3%, 2%) rotate(-2deg) scale(1.02);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes grid-move {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 50px 50px;
+  }
+}
+
+.flowing-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.flowing-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: grid-move 20s linear infinite;
+}
+
+.tech-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  animation: flow 15s ease-in-out infinite;
+}
+
+.tech-blob-1 {
+  width: 50vw;
+  height: 50vw;
+  top: -15%;
+  left: -10%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(147, 197, 253, 0.1) 50%, transparent 70%);
+  animation: flow 18s ease-in-out infinite, pulse-slow 8s ease-in-out infinite;
+}
+
+.tech-blob-2 {
+  width: 45vw;
+  height: 45vw;
+  top: 20%;
+  right: -15%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.18) 0%, rgba(251, 191, 36, 0.08) 50%, transparent 70%);
+  animation: flow 20s ease-in-out infinite reverse, pulse-slow 10s ease-in-out infinite;
+  animation-delay: -5s;
+}
+
+.tech-blob-3 {
+  width: 40vw;
+  height: 40vw;
+  bottom: -10%;
+  left: 20%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(52, 211, 153, 0.08) 50%, transparent 70%);
+  animation: flow 22s ease-in-out infinite, pulse-slow 12s ease-in-out infinite;
+  animation-delay: -10s;
+}
+
+.tech-lines {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.4;
+}
+
+.tech-line {
+  position: absolute;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+  height: 1px;
+}
+
+.tech-line-1 {
+  top: 25%;
+  left: 0;
+  right: 0;
+  animation: pulse-slow 6s ease-in-out infinite;
+}
+
+.tech-line-2 {
+  top: 75%;
+  left: 0;
+  right: 0;
+  animation: pulse-slow 8s ease-in-out infinite;
+  animation-delay: -3s;
+}
+
+.tech-line-v {
+  position: absolute;
+  background: linear-gradient(180deg, transparent, rgba(59, 130, 246, 0.2), transparent);
+  width: 1px;
+  top: 0;
+  bottom: 0;
+}
+
+.tech-line-v-1 {
+  left: 20%;
+  animation: pulse-slow 7s ease-in-out infinite;
+}
+
+.tech-line-v-2 {
+  right: 25%;
+  animation: pulse-slow 9s ease-in-out infinite;
+  animation-delay: -4s;
+}

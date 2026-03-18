@@ -1,0 +1,192 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+model Term {
+  id        String       @id @default(uuid())
+  name      String
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  gameModules  GameModule[]
+  activeClassGroups  ClassGroup[] @relation("ActiveTerm")
+
+  @@map("terms")
+}
+
+model GameModule {
+  id          String   @id @default(uuid())
+  termId      String
+  code        String   // 例如: HANOI, CLICK_1, CLICK_2
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  term                Term                @relation(fields: [termId], references: [id], onDelete: Cascade)
+  classGameUnlocks   ClassGameUnlock[]
+  sessionGameUnlocks SessionGameUnlock[]
+  systemLogs         SystemLog[]
+  learningLogs       LearningLog[]
+
+  @@unique([termId, code])
+  @@map("game_modules")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  account        String   @unique
+  name           String?  // 學員可暫不設姓名，顯示時以 account 補上
+  role           UserRole
+  schoolCode     String?
+  passwordHash   String
+  gender         String?  // 學員 Onboarding：男/女
+  grade          String?  // 學員 Onboarding：三年級～六年級
+  avatarUrl      String?  // 講師/Admin 大頭照
+  onboardingDone Boolean  @default(false) // 學員是否已填過人口變項
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  teacherGroups           ClassGroup[]         @relation("TeacherClassGroup")
+  classGroupTeacherAssignments ClassGroupTeacher[] @relation("ClassGroupTeacherUser")
+  studentGroup            ClassGroup?          @relation("StudentClassGroup", fields: [studentGroupId], references: [id])
+  studentGroupId         String?
+
+  systemLogs   SystemLog[]
+  learningLogs LearningLog[]
+
+  @@map("users")
+}
+
+model ClassGroup {
+  id          String   @id @default(uuid())
+  name        String   // 班級名稱
+  schoolCode  String   // 班級代碼
+  teacherId   String   // 主講師
+  activeTermId String? // 當前使用的期數（期數負責裝遊戲/測驗；班級本身永久）
+  loginLocked Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  activeTerm          Term?                @relation("ActiveTerm", fields: [activeTermId], references: [id], onDelete: SetNull)
+  teacher             User                 @relation("TeacherClassGroup", fields: [teacherId], references: [id])
+  teachers            ClassGroupTeacher[]  @relation("ClassGroupTeachers")
+  students            User[]               @relation("StudentClassGroup")
+  sessions            Session[]
+  classGameUnlocks    ClassGameUnlock[]
+  systemLogs          SystemLog[]
+
+  @@map("class_groups")
+}
+
+// 班級與教師多對多：可指派多位教師至同一班級
+model ClassGroupTeacher {
+  id           String   @id @default(uuid())
+  classGroupId String
+  userId       String
+  createdAt    DateTime @default(now())
+
+  classGroup ClassGroup @relation("ClassGroupTeachers", fields: [classGroupId], references: [id], onDelete: Cascade)
+  user       User       @relation("ClassGroupTeacherUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([classGroupId, userId])
+  @@map("class_group_teachers")
+}
+
+// 學習歷程紀錄：遊戲/問卷的開始、完成、答題等
+model LearningLog {
+  id           String   @id @default(uuid())
+  userId       String
+  gameModuleId String?
+  actionType   String   // START | COMPLETE | ANSWER_QUESTION 等
+  detail       Json?    // 分數、答題內容等
+  createdAt    DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameModule GameModule? @relation(fields: [gameModuleId], references: [id], onDelete: SetNull)
+
+  @@map("learning_logs")
+}
+
+// 堂次：例如 3/21 第一堂，該堂可有多個問卷/遊戲，老師控制解鎖
+model Session {
+  id           String   @id @default(uuid())
+  classGroupId String
+  name         String   // 例：第一堂
+  sessionAt    DateTime? // 例：2026-03-21
+  order        Int      @default(1)  // 1～4
+  isActive     Boolean  @default(false)  // 該班目前進行中的堂次（學員端用）
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  unlocks    SessionGameUnlock[]
+  systemLogs SystemLog[]
+
+  @@map("sessions")
+}
+
+model SessionGameUnlock {
+  id           String   @id @default(uuid())
+  sessionId    String
+  gameModuleId String
+  isUnlocked   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  session   Session    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  gameModule GameModule @relation(fields: [gameModuleId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, gameModuleId])
+  @@map("session_game_unlocks")
+}
+
+model ClassGameUnlock {
+  id           String   @id @default(uuid())
+  classGroupId String
+  gameModuleId String
+  isUnlocked   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  gameModule GameModule @relation(fields: [gameModuleId], references: [id], onDelete: Cascade)
+
+  @@unique([classGroupId, gameModuleId])
+  @@map("class_game_unlocks")
+}
+
+model SystemLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  classGroupId String?
+  sessionId    String?
+  gameModuleId String?
+  action       String   // START | MOVE | HELP | ERROR | SUCCESS | TAB_LEAVE | TAB_ENTER | PING | UNLOCK_TASK | VIEW_STUDENT_DATA 等
+  isCorrect    Boolean?
+  timeDiffMs   Int?
+  payload      Json?    // 任意 JSON：按鈕 id、河內塔 from/to/積木編號、raw_data 等，論文用
+  createdAt    DateTime @default(now())
+
+  user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  classGroup ClassGroup?  @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
+  session    Session?     @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  gameModule GameModule?  @relation(fields: [gameModuleId], references: [id], onDelete: SetNull)
+
+  @@map("system_logs")
+}
