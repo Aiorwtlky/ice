@@ -4,7 +4,8 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import useSWR from 'swr';
 import GameFrame from '@/components/GameFrame';
-import { HanoiGame, Click1Game, Click2Game } from '@/components/games/StudentGameViews';
+import { HanoiGame, Click1Game, Click2Game, MonsterGobblerGame, BubbleTeaMasterGame, MagicPancakeTowerGame } from '@/components/games/StudentGameViews';
+import FormActivityPlayer from '@/components/forms/FormActivityPlayer';
 import {
   ChevronLeft,
   BarChart3,
@@ -124,7 +125,25 @@ function TeacherPlayPageInner() {
     classGroupId && item?.gameModuleId && selectedStudentId
       ? `/api/teacher/activity-logs?classGroupId=${encodeURIComponent(classGroupId)}&gameModuleId=${encodeURIComponent(item.gameModuleId)}&userId=${encodeURIComponent(selectedStudentId)}`
       : null;
-  const { data: logsData } = useSWR<{ student: { account: string; name: string | null }; logs: { id: string; actionType: string; detail: unknown; createdAt: string }[] }>(
+  const { data: logsData } = useSWR<{
+    student: { account: string; name: string | null };
+    formSubmission?: {
+      id: string;
+      status: string;
+      attemptNumber: number;
+      submittedAt: string | null;
+      updatedAt: string;
+      title: string;
+      answers: {
+        id: string;
+        questionId: string;
+        questionTitle: string;
+        questionType: string;
+        value: unknown;
+      }[];
+    } | null;
+    logs: { id: string; actionType: string; detail: unknown; createdAt: string }[];
+  }>(
     logsUrl,
     fetcher
   );
@@ -377,7 +396,7 @@ function TeacherPlayPageInner() {
           <Click2Game sendLog={noopLog} onSuccess={handleBack} />
         </GameFrame>
       )}
-      {(gameCode === 'HANOI_3' || gameCode === 'HANOI_4' || gameCode === 'HANOI_5') && (
+      {(gameCode === 'HANOI_3' || gameCode === 'HANOI_4' || gameCode === 'HANOI_5' || gameCode === 'HANOI_6' || gameCode === 'HANOI_7' || gameCode === 'HANOI_8') && (
         <GameFrame
           headerTitle={headerTitle}
           userLabel={`示範 · ${user?.account ?? ''}`}
@@ -391,13 +410,88 @@ function TeacherPlayPageInner() {
         >
           <HanoiGame
             ref={hanoiHelpRef}
-            n={gameCode === 'HANOI_3' ? 3 : gameCode === 'HANOI_4' ? 4 : 5}
+            n={
+              gameCode === 'HANOI_3'
+                ? 3
+                : gameCode === 'HANOI_4'
+                  ? 4
+                  : gameCode === 'HANOI_5'
+                    ? 5
+                    : gameCode === 'HANOI_6'
+                      ? 6
+                      : gameCode === 'HANOI_7'
+                        ? 7
+                        : 8
+            }
             sendLog={noopLog}
             onExit={handleBack}
           />
         </GameFrame>
       )}
-      {!['CLICK_1', 'CLICK_2', 'HANOI_3', 'HANOI_4', 'HANOI_5'].includes(gameCode) && (
+      {gameCode === 'MONSTER_GOBBLER' && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          onHelp={() => {
+            alert('示範：先餵食（push）塞滿肚子，再切換模式。💩=shift（先進先出）；🤮=pop（後進先出）。');
+          }}
+          helpTip="push / shift / pop"
+          mainLayout="fill"
+        >
+          <MonsterGobblerGame sendLog={noopLog} />
+        </GameFrame>
+      )}
+      {gameCode === 'BUBBLE_TEA_MASTER' && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          onHelp={() => {
+            alert('示範：一直加配料（push）。粗吸管=shift（佇列：最早加入先被吸走）；長湯匙=pop（堆疊：最後加入先被挖走）。');
+          }}
+          helpTip="push / shift（佇列）/ pop（堆疊）"
+          mainLayout="fill"
+        >
+          <BubbleTeaMasterGame sendLog={noopLog} />
+        </GameFrame>
+      )}
+      {gameCode === 'MAGIC_PANCAKE_TOWER' && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          onHelp={() => {
+            alert('示範：Stack（後進先出）。只能從頂部 pop。Level 2 用備用盤子先移走上面兩片，最後才能拿到被壓底的巧克力。');
+          }}
+          helpTip="只能操作頂部：push / pop（LIFO）"
+          mainLayout="fill"
+        >
+          <MagicPancakeTowerGame sendLog={noopLog} />
+        </GameFrame>
+      )}
+      {gameCode.startsWith('FORM_') && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          helpModalMessage="這是表單活動示範頁：可預覽題目與流程（無法送出）。學生端可儲存草稿與送出表單。"
+          helpTip="老師示範：查看題目與流程"
+          denseMobileDock
+          mainLayout="fill"
+        >
+          <FormActivityPlayer gameCode={gameCode} previewMode />
+        </GameFrame>
+      )}
+      {!['CLICK_1', 'CLICK_2', 'HANOI_3', 'HANOI_4', 'HANOI_5', 'HANOI_6', 'HANOI_7', 'HANOI_8', 'MONSTER_GOBBLER', 'BUBBLE_TEA_MASTER', 'MAGIC_PANCAKE_TOWER'].includes(gameCode) && !gameCode.startsWith('FORM_') && (
         <GameFrame headerTitle={headerTitle} userLabel="老師示範" userAvatar={abbr} onBack={handleBack} onLogout={handleLogout}>
           <div className="flex h-full items-center justify-center p-6 text-gray-600">此活動尚無示範畫面</div>
         </GameFrame>
@@ -409,7 +503,7 @@ function TeacherPlayPageInner() {
     <div className="relative h-screen w-full overflow-hidden bg-[#FDFBF7] lg:pr-80">
       <button
         type="button"
-        className="fixed left-3 top-20 z-[100] flex items-center gap-1 rounded-full border border-amber-300 bg-white/95 px-3 py-2 text-xs font-bold text-amber-900 shadow-md lg:hidden"
+        className="fixed left-3 top-[4.25rem] z-[100] flex items-center gap-1 rounded-full border border-amber-300 bg-white/95 px-3 py-2 text-xs font-bold text-amber-900 shadow-md backdrop-blur-sm lg:hidden"
         onClick={() => setDrawerOpen(true)}
       >
         <PanelRightOpen className="h-4 w-4" />
@@ -422,7 +516,7 @@ function TeacherPlayPageInner() {
         <div className="fixed inset-0 z-[90] bg-black/40 lg:hidden" onClick={() => setDrawerOpen(false)} aria-hidden />
       )}
       <aside
-        className={`fixed right-0 top-0 z-[95] h-full w-[min(100vw-3rem,20rem)] border-l border-gray-200 bg-white shadow-xl transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed right-0 top-0 z-[95] h-full overflow-y-auto border-l border-gray-200 bg-white shadow-xl transition-transform duration-200 w-[min(100vw-3rem,22rem)] max-lg:landscape:w-[min(100vw-3rem,18rem)] lg:translate-x-0 ${
           drawerOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
         }`}
       >
@@ -462,24 +556,65 @@ function TeacherPlayPageInner() {
             <div className="max-h-[70vh] overflow-y-auto p-4">
               {!logsData ? (
                 <p className="text-sm text-gray-500">載入中…</p>
-              ) : logsData.logs.length === 0 ? (
-                <p className="text-sm text-gray-500">尚無紀錄</p>
               ) : (
-                <ul className="space-y-3">
-                  {logsData.logs.map((log) => (
-                    <li key={log.id} className="rounded-xl border border-gray-200 bg-white p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="font-semibold text-amber-800">{log.actionType}</div>
-                        <div className="shrink-0 font-mono text-[10px] text-gray-500">{fmtLogLine(log.createdAt)}</div>
+                <div className="space-y-4">
+                  {logsData.formSubmission && (
+                    <section className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-extrabold text-sky-900">最新表單提交</p>
+                          <p className="text-xs text-sky-700">
+                            狀態：{logsData.formSubmission.status} · 第 {logsData.formSubmission.attemptNumber} 次
+                          </p>
+                        </div>
+                        <div className="text-right text-[11px] text-sky-700">
+                          <div>送出：{logsData.formSubmission.submittedAt ? fmtLogLine(logsData.formSubmission.submittedAt) : '尚未正式送出'}</div>
+                          <div>更新：{fmtLogLine(logsData.formSubmission.updatedAt)}</div>
+                        </div>
                       </div>
-                      {log.detail != null && (
-                        <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-gray-50 p-2 text-[11px] text-gray-700">
-                          {JSON.stringify(log.detail, null, 0)}
-                        </pre>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                      <div className="mt-3 space-y-2">
+                        {logsData.formSubmission.answers.length === 0 ? (
+                          <div className="rounded-xl bg-white/80 px-3 py-2 text-sm text-gray-500">目前沒有答案</div>
+                        ) : (
+                          logsData.formSubmission.answers.map((answer, index) => (
+                            <div key={answer.id} className="rounded-xl border border-white/90 bg-white px-3 py-3">
+                              <div className="text-xs font-bold text-sky-700">第 {index + 1} 題</div>
+                              <div className="mt-1 text-sm font-bold text-gray-900">{answer.questionTitle}</div>
+                              <div className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                {Array.isArray(answer.value)
+                                  ? answer.value.join('、') || '未作答'
+                                  : String(answer.value ?? '未作答')}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </section>
+                  )}
+
+                  <section>
+                    <div className="mb-2 text-sm font-extrabold text-gray-900">事件紀錄</div>
+                    {logsData.logs.length === 0 ? (
+                      <p className="text-sm text-gray-500">尚無紀錄</p>
+                    ) : (
+                      <ul className="space-y-3">
+                        {logsData.logs.map((log) => (
+                          <li key={log.id} className="rounded-xl border border-gray-200 bg-white p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="font-semibold text-amber-800">{log.actionType}</div>
+                              <div className="shrink-0 font-mono text-[10px] text-gray-500">{fmtLogLine(log.createdAt)}</div>
+                            </div>
+                            {log.detail != null && (
+                              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-gray-50 p-2 text-[11px] text-gray-700">
+                                {JSON.stringify(log.detail, null, 0)}
+                              </pre>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                </div>
               )}
             </div>
             <div className="border-t border-gray-100 p-3">

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR, { useSWRConfig } from 'swr';
-import { Radar, ArrowRight } from 'lucide-react';
+import { Radar, ArrowRight, Trophy } from 'lucide-react';
 import GameFrame from '@/components/GameFrame';
 import { useGameLog } from '@/hooks/useGameLog';
 
@@ -34,16 +34,25 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 export default function StudentDashboard() {
   const router = useRouter();
   const { mutate: globalMutate } = useSWRConfig();
-  const [user, setUser] = useState<UserMe | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+  const [onboardingOverride, setOnboardingOverride] = useState<boolean | null>(null);
 
   const { data: meData, mutate: mutateMe } = useSWR<{ user?: UserMe }>('/api/auth/me', fetcher, { revalidateOnFocus: false });
+  const user = meData?.user ?? null;
+  const isStudent = !!user && user.role === 'STUDENT';
+  const onboardingDone = onboardingOverride ?? (user?.onboardingDone ?? null);
+
   const { data: statusData, error, isLoading } = useSWR<StatusData & { error?: string }>(
-    user?.role === 'STUDENT' ? '/api/games/status' : null,
+    isStudent ? '/api/games/status' : null,
     fetcher,
     { refreshInterval: 2000 }
   );
+
+  const { data: compData } = useSWR<{ competitions: { id: string; name: string; status: string }[] }>(
+    isStudent ? '/api/class-competitions' : null,
+    fetcher,
+    { refreshInterval: 5000 }
+  );
+  const competitions = compData?.competitions ?? [];
 
   useEffect(() => {
     if (!meData) return;
@@ -55,9 +64,6 @@ export default function StudentDashboard() {
       router.replace('/dashboard');
       return;
     }
-    setUser(meData.user);
-    setOnboardingDone(meData.user.onboardingDone ?? false);
-    setLoading(false);
   }, [meData, router]);
 
   const { sendLog } = useGameLog(null);
@@ -70,19 +76,21 @@ export default function StudentDashboard() {
     });
     const data = await res.json();
     if (data.success) {
-      setOnboardingDone(true);
+      setOnboardingOverride(true);
       await mutateMe();
       globalMutate('/api/auth/me');
     }
   };
 
-  if (loading || !user) {
+  const loading = useMemo(() => !meData || !user, [meData, user]);
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#FDFBF7]">
         <p className="text-gray-600">載入中...</p>
       </div>
     );
   }
+  if (!user) return null;
 
   // 首次登入：全螢幕人口變項
   if (onboardingDone === false) {
@@ -92,7 +100,7 @@ export default function StudentDashboard() {
   }
 
   const status = statusData as StatusData | undefined;
-  const classLabel = status?.classGroup?.name ?? user.studentGroup?.name ?? '我的班級';
+  const classLabel = status?.classGroup?.name ?? user?.studentGroup?.name ?? '我的班級';
   const unlocked = status?.unlocks?.filter((u) => u.isUnlocked) ?? [];
   const allLocked = !isLoading && (status?.unlocks?.length ?? 0) > 0 && unlocked.length === 0;
 
@@ -114,8 +122,32 @@ export default function StudentDashboard() {
       }}
       mainLayout="fill"
     >
-      <div className="flex h-full min-h-0 flex-col items-center justify-center p-4 sm:p-6">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden p-4 sm:p-6">
+        {competitions.length > 0 && (
+          <div className="mx-auto mb-4 w-full max-w-lg shrink-0 rounded-2xl border-2 border-violet-200 bg-violet-50/70 p-4 shadow-sm">
+            <div className="mb-2 flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-violet-600" />
+              <h2 className="text-base font-extrabold text-violet-950">班級競賽</h2>
+            </div>
+            <p className="mb-3 text-xs text-violet-900/80">與課程任務分開；點擊進入可見排行榜與規則。</p>
+            <ul className="space-y-2">
+              {competitions.map((co) => (
+                <li key={co.id}>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/student/competition/${co.id}`)}
+                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-violet-300 bg-white/90 px-4 py-3 text-left text-sm font-bold text-violet-950 shadow-sm transition hover:border-violet-500"
+                  >
+                    <span className="min-w-0 flex-1 break-words">{co.name}</span>
+                    <span className="shrink-0 text-xs font-semibold text-violet-600">{co.status}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {allLocked && (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
           <div className="flex w-full max-w-2xl flex-col items-center rounded-2xl border border-amber-200 bg-amber-50/60 p-10 text-center">
             <div className="relative mb-4">
               <div className="absolute inset-0 rounded-full bg-amber-400/30 blur-xl animate-pulse" />
@@ -126,34 +158,44 @@ export default function StudentDashboard() {
             <h2 className="text-xl font-bold text-gray-900">連線中...</h2>
             <p className="mt-1 text-base text-gray-700">等待老師開放任務</p>
           </div>
+          </div>
         )}
         {unlocked.length > 0 && (
-          <div className="w-full max-w-md min-h-0">
-            {/* 手機：任務多時可捲動；桌機維持置中 */}
-            <div className="grid max-h-[65vh] gap-3 overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0">
-            {unlocked.map((item) => (
+          <div className="mx-auto flex w-full max-w-lg min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]">
+            <div className="grid gap-3 pb-2">
+            {unlocked.map((item) => {
+              const title =
+                (item.gameName && String(item.gameName).trim()) || item.gameCode || '未命名活動';
+              return (
               <button
                 type="button"
                 key={item.gameModuleId}
                 onClick={() => router.push('/student/games/' + item.gameCode)}
                 className="flex items-center justify-between gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50/80 p-5 text-left shadow-sm transition hover:border-amber-500 hover:bg-amber-50"
               >
-                <span className="min-w-0 flex-1 truncate text-base font-semibold text-gray-900" title={item.gameName}>
-                  {item.gameName}
+                <span className="min-w-0 flex-1 text-left text-base font-semibold leading-snug break-words text-gray-900">
+                  {title}
                 </span>
                 <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-amber-700">
                   進入任務 <ArrowRight className="h-4 w-4" />
                 </span>
               </button>
-            ))}
+            );
+            })}
+            </div>
             </div>
           </div>
         )}
-        {!isLoading && (status?.unlocks?.length ?? 0) === 0 && !error && (
-          <p className="text-gray-500">目前沒有任務</p>
+        {!isLoading && (status?.unlocks?.length ?? 0) === 0 && !error && unlocked.length === 0 && !allLocked && (
+          <div className="flex flex-1 items-center justify-center">
+            <p className="text-gray-500">目前沒有任務</p>
+          </div>
         )}
         {error && (
-          <p className="text-sm text-red-600">無法載入任務，請稍後再試</p>
+          <div className="flex flex-1 items-center justify-center p-4">
+            <p className="text-sm text-red-600">無法載入任務，請稍後再試</p>
+          </div>
         )}
       </div>
     </GameFrame>

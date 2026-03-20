@@ -58,11 +58,12 @@ function buildUnlocks(
   );
   return gameModules.map((gm) => {
     const u = unlockMap.get(gm.id);
+    const displayName = (gm.name && String(gm.name).trim()) || gm.code || '未命名活動';
     return {
       unlockId: u?.id ?? null,
       gameModuleId: gm.id,
       gameCode: gm.code,
-      gameName: gm.name,
+      gameName: displayName,
       isUnlocked: u ? u.isUnlocked : false,
     };
   });
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest) {
         openActivities: opens.map((o) => ({
           gameModuleId: o.gameModuleId,
           gameCode: o.gameModule.code,
-          gameName: o.gameModule.name,
+          gameName: (o.gameModule.name && String(o.gameModule.name).trim()) || o.gameModule.code || '未命名活動',
         })),
       });
     }

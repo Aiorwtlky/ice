@@ -3,7 +3,12 @@
 import { useRef, useEffect, useCallback } from 'react';
 
 export function useGameLog(gameModuleId: string | null, sessionId?: string | null) {
-  const lastTimeRef = useRef<number>(Date.now());
+  const lastTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    // 避免在 render 階段呼叫 Date.now()（lint: react-hooks/purity）
+    lastTimeRef.current = Date.now();
+  }, []);
 
   const sendLog = useCallback(
     async (
@@ -11,7 +16,8 @@ export function useGameLog(gameModuleId: string | null, sessionId?: string | nul
       opts?: { isCorrect?: boolean; timeDiffMs?: number; payload?: Record<string, unknown> }
     ) => {
       const now = Date.now();
-      const timeDiffMs = opts?.timeDiffMs ?? now - lastTimeRef.current;
+      const base = lastTimeRef.current || now;
+      const timeDiffMs = opts?.timeDiffMs ?? now - base;
       lastTimeRef.current = now;
       await fetch('/api/logs', {
         method: 'POST',

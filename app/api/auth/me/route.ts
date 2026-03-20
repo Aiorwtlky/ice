@@ -9,6 +9,19 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
 );
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(label)), ms);
+    p.then((v) => {
+      clearTimeout(t);
+      resolve(v);
+    }).catch((e) => {
+      clearTimeout(t);
+      reject(e);
+    });
+  });
+}
+
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
@@ -26,21 +39,25 @@ export async function GET(request: NextRequest) {
     const userId = payload.userId as string;
 
     // 查詢使用者資訊
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        studentGroup: {
-          include: {
-            activeTerm: true,
+    const user = await withTimeout(
+      prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          studentGroup: {
+            include: {
+              activeTerm: true,
+            },
+          },
+          teacherGroups: {
+            include: {
+              activeTerm: true,
+            },
           },
         },
-        teacherGroups: {
-          include: {
-            activeTerm: true,
-          },
-        },
-      },
-    });
+      }),
+      5000,
+      'auth/me: prisma timeout'
+    );
 
     if (!user) {
       return NextResponse.json(
@@ -68,7 +85,5 @@ export async function GET(request: NextRequest) {
       { error: 'Token 無效或已過期' },
       { status: 401 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

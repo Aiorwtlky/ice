@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { User, Building2, Gamepad2, Users, ClipboardList, Eye, Lock, Unlock, ChevronDown, ChevronRight, Search, ArrowUpDown, MonitorPlay } from 'lucide-react';
+import { User, Building2, Gamepad2, Users, ClipboardList, Eye, Lock, Unlock, ChevronDown, ChevronRight, Search, ArrowUpDown, MonitorPlay, Trophy } from 'lucide-react';
 
 interface UserInfo {
   id: string;
@@ -94,16 +94,14 @@ export default function TeacherDashboard() {
   const teacherClasses = teacherClassesData?.classes ?? [];
   const classId = teacherClasses[0]?.id ?? '';
 
-  const statusUrl = classId ? (sessionId ? `/api/games/status?classGroupId=${classId}&sessionId=${sessionId}` : `/api/games/status?classGroupId=${classId}`) : null;
+  const statusUrl = classId
+    ? sessionId
+      ? `/api/games/status?classGroupId=${classId}&sessionId=${sessionId}`
+      : `/api/games/status?classGroupId=${classId}`
+    : null;
   const { data, error, isLoading, mutate } = useSWR<StatusData & { error?: string }>(statusUrl, fetcher, { refreshInterval: 0 });
   const status = data as StatusData | undefined;
-
-  // 若後端回傳了活動分類且尚未選擇，預設選第一個，避免畫面「沒有活動」造成無法測試
-  useEffect(() => {
-    if (sessionId) return;
-    const sessions = status?.sessions ?? [];
-    if (sessions.length > 0) setSessionId(sessions[0].id);
-  }, [status?.sessions, sessionId]);
+  const effectiveSessionId = sessionId ?? status?.sessions?.[0]?.id ?? null;
 
   const { data: studentsData, mutate: mutateStudents } = useSWR<{ students: { id: string; account: string; name: string | null; gender?: string | null; grade?: string | null; onboardingDone?: boolean }[] }>(
     classId ? `/api/class-groups/${classId}/students` : null,
@@ -133,7 +131,7 @@ export default function TeacherDashboard() {
       .then((data) => {
         if (!data.user) { router.replace('/'); return; }
         if (data.user.role !== 'TEACHER' && data.user.role !== 'ADMIN') { router.replace('/dashboard'); return; }
-        setUser(data.user);
+          setUser(data.user);
       })
       .catch(() => router.replace('/'))
       .finally(() => setLoading(false));
@@ -152,12 +150,12 @@ export default function TeacherDashboard() {
   };
 
   const handleSetUnlock = async (item: UnlockItem, classGroupId: string, isUnlocked: boolean) => {
-    if (!sessionId) return;
+    if (!effectiveSessionId) return;
     if (toggleSavingIds[item.gameModuleId]) return;
     if (item.isUnlocked === isUnlocked) return;
     setToggleSavingIds((m) => ({ ...m, [item.gameModuleId]: true }));
     const res = await fetch('/api/games/status', {
-      method: 'POST',
+        method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ classGroupId, gameModuleId: item.gameModuleId, isUnlocked }),
     });
@@ -250,8 +248,8 @@ export default function TeacherDashboard() {
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 lg:overflow-hidden lg:flex lg:items-center lg:justify-center">
-        <div className="mx-auto grid w-full max-w-7xl min-h-0 gap-6 lg:h-full lg:grid-cols-3 items-stretch">
+      <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden lg:items-stretch">
+        <div className="mx-auto grid w-full max-w-7xl min-h-0 flex-1 gap-6 lg:grid-cols-3 lg:items-stretch">
           {/* 左：班級與設定 */}
           <div className="rounded-2xl border border-gray-200/60 bg-white/90 p-6 shadow-lg backdrop-blur-sm min-h-0">
             <div className="mb-4 flex items-center gap-3">
@@ -297,7 +295,7 @@ export default function TeacherDashboard() {
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-gray-200/60 bg-white/90 p-6 shadow-lg backdrop-blur-sm lg:col-span-2">
+          <div className="flex min-h-0 min-h-[50vh] flex-1 flex-col rounded-2xl border border-gray-200/60 bg-white/90 p-6 shadow-lg backdrop-blur-sm lg:col-span-2 lg:min-h-0">
             <div className="mb-4 flex shrink-0 flex-wrap gap-2">
               {(['control', 'students', 'logs'] as Tab[]).map((t) => (
                 <button key={t} type="button" onClick={() => setTab(t)} className={`flex items-center gap-1 rounded-lg px-4 py-2 text-sm ${tab === t ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
@@ -312,98 +310,141 @@ export default function TeacherDashboard() {
             </div>
 
             {tab === 'control' && (
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-amber-200/80 bg-gradient-to-b from-amber-50/40 via-white to-white p-5 shadow-inner">
-                <h2 className="shrink-0 text-lg font-bold tracking-tight text-gray-900">課程任務中控台</h2>
-                <p className="mt-1 max-w-2xl shrink-0 text-sm leading-relaxed text-gray-600">
-                  在下方選擇<strong className="font-semibold text-gray-800">活動分類</strong>後，用「開放／關閉」控制該活動是否出現在學生畫面。不同分類裡的活動可同時開放。
-                </p>
+              <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-amber-200/80 bg-gradient-to-b from-amber-50/40 via-white to-white p-4 shadow-inner sm:p-5">
+                <div className="flex min-h-0 min-h-[280px] flex-1 flex-col gap-4 lg:min-h-0 lg:flex-row lg:gap-5">
+                  {/* 左（桌機）：說明、表單捷徑、分類；手機：整欄在上 */}
+                  <div className="flex min-h-0 shrink-0 flex-col gap-4 lg:w-[min(100%,340px)] lg:max-w-[40%] lg:shrink-0 lg:overflow-y-auto lg:pr-1">
+                    <div>
+                      <h2 className="text-lg font-bold tracking-tight text-gray-900">課程任務中控台</h2>
+                      <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                        左側選<strong className="font-semibold text-gray-800">活動分類</strong>，右側用「開放／關閉」控制學生是否看得到該活動。不同分類可同時開放。
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => router.push('/dashboard/forms')}
+                        className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-800 hover:bg-gray-50"
+                      >
+                        管理表單活動
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => router.push('/dashboard/forms/new')}
+                        className="rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-sm font-bold text-amber-800 hover:bg-amber-50"
+                      >
+                        新增表單活動
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(
+                            classId
+                              ? `/dashboard/competitions?classGroupId=${encodeURIComponent(classId)}`
+                              : '/dashboard/competitions'
+                          )
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-bold text-violet-900 hover:bg-violet-100"
+                      >
+                        <Trophy className="h-4 w-4 shrink-0" />
+                        班級競賽
+                      </button>
+                    </div>
 
-                {openSummary?.openActivities && openSummary.openActivities.length > 0 && (
-                  <div className="mt-4 shrink-0 rounded-xl border border-emerald-200/90 bg-emerald-50/70 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">學生端目前可進入</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {openSummary.openActivities.map((a) => (
-                        <span
-                          key={a.gameModuleId}
-                          className="inline-flex items-center rounded-full border border-emerald-300/80 bg-white px-3 py-1 text-sm font-medium text-emerald-900 shadow-sm"
-                        >
-                          {a.gameName}
-                        </span>
-                      ))}
+                    {openSummary?.openActivities && openSummary.openActivities.length > 0 && (
+                      <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/70 px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">學生端目前可進入</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {openSummary.openActivities.map((a) => (
+                            <span
+                              key={a.gameModuleId}
+                              className="inline-flex max-w-full items-center rounded-full border border-emerald-300/80 bg-white px-3 py-1 text-sm font-medium break-words text-emerald-900 shadow-sm"
+                            >
+                              {(a.gameName && String(a.gameName).trim()) || a.gameCode || '未命名活動'}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {hasError && (
+                      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{data?.error ?? '無法載入'}</div>
+                    )}
+                    {isLoading && !status && <p className="text-gray-500">載入中...</p>}
+
+                    <div className="rounded-2xl border border-amber-200/90 bg-white/90 p-4 shadow-sm md:p-5">
+                      <p className="mb-2 text-sm font-extrabold tracking-wide text-gray-800">活動分類</p>
+                      <p className="mb-3 text-xs leading-relaxed text-gray-500 md:text-sm">點選後，右側會列出該分類內活動。</p>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        {(status?.sessions ?? []).map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setSessionId(s.id)}
+                            className={`inline-flex min-h-[48px] w-full items-center justify-center rounded-xl border-2 px-4 py-3 text-center text-base font-bold leading-snug whitespace-normal break-words transition sm:min-h-[52px] sm:w-auto sm:min-w-[7.5rem] sm:flex-1 sm:basis-[calc(50%-0.25rem)] md:text-lg ${
+                              effectiveSessionId === s.id
+                                ? 'border-amber-500 bg-amber-500 text-white shadow-md'
+                                : 'border-gray-200 bg-white text-gray-900 hover:border-amber-300 hover:bg-amber-50/50'
+                            }`}
+                          >
+                            {s.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                )}
 
-                {hasError && (
-                  <div className="mt-4 shrink-0 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{data?.error ?? '無法載入'}</div>
-                )}
-                {isLoading && !status && <p className="mt-4 shrink-0 text-gray-500">載入中...</p>}
-
-                <div className="mt-5 shrink-0">
-                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-500">活動分類</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(status?.sessions ?? []).map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setSessionId(s.id)}
-                        className={`min-h-[44px] rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition ${
-                          sessionId === s.id
-                            ? 'border-amber-500 bg-amber-500 text-white shadow-md'
-                            : 'border-gray-200 bg-white text-gray-800 hover:border-amber-300 hover:bg-amber-50/50'
-                        }`}
-                      >
-                        {s.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-amber-100 pt-4">
-                  <p className="mb-2 shrink-0 text-xs font-bold uppercase tracking-widest text-gray-500">
-                    此分類活動 · {status?.session?.name ?? '—'}
-                  </p>
-                  <p className="mb-2 shrink-0 text-[11px] text-gray-400">活動較多時可於下方區域捲動</p>
-                  <div
-                    className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-xl border border-amber-200/70 bg-white/60 p-3 pr-2 shadow-inner [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-amber-100/90 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-400/90 hover:[&::-webkit-scrollbar-thumb]:bg-amber-500"
-                    style={{ scrollbarWidth: 'thin', scrollbarColor: '#f59e0b #fef3c7' }}
-                  >
-                    <div className="space-y-3">
-                    {sessionId && status?.unlocks && status.unlocks.length > 0 ? (
+                  {/* 右（桌機）：活動列表專用欄，獨立捲動 */}
+                  <div className="flex min-h-0 min-h-[220px] flex-1 flex-col rounded-xl border border-amber-200/60 bg-white/50 p-3 lg:min-h-0">
+                    <p className="mb-1 shrink-0 text-xs font-bold uppercase tracking-widest text-gray-500 md:text-sm">
+                      此分類活動 · {status?.session?.name ?? '—'}
+                    </p>
+                    <p className="mb-2 shrink-0 text-xs text-gray-500 md:text-sm">此區可獨立捲動；活動多時請往下滑</p>
+                    <div
+                      className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain rounded-xl border border-amber-200/70 bg-white/80 p-3 pr-2 shadow-inner [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-amber-100/90 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-400/90 hover:[&::-webkit-scrollbar-thumb]:bg-amber-500 lg:min-h-[12rem]"
+                      style={{ scrollbarWidth: 'thin', scrollbarColor: '#f59e0b #fef3c7' }}
+                    >
+                      <div className="space-y-3">
+                    {effectiveSessionId && status?.unlocks && status.unlocks.length > 0 ? (
                       status.unlocks.map((item) => {
                         const saving = !!toggleSavingIds[item.gameModuleId];
+                        const activityTitle =
+                          (item.gameName && String(item.gameName).trim()) || item.gameCode || '未命名活動';
                         return (
                           <div
                             key={item.gameModuleId}
-                            className="grid gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                            className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
                           >
-                            <div className="min-w-0 pr-1">
-                              <p className="truncate text-base font-semibold text-gray-900" title={item.gameName}>
-                                {item.gameName}
+                            {/* 上：標題（可換行，不用 truncate，避免捲動區內寬度異常時看不到字） */}
+                            <div className="min-w-0">
+                              <p className="text-base font-semibold leading-snug break-words text-gray-900">
+                                {activityTitle}
                               </p>
-                              <p className="mt-0.5 truncate font-mono text-xs text-gray-500" title={item.gameCode}>
+                              <p className="mt-1 break-all font-mono text-xs text-gray-500" title={item.gameCode}>
                                 {item.gameCode}
                               </p>
                             </div>
-                            <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                            {/* 下：按鈕列 — 手機：示範整列 + 開放/關閉並排；md+：橫排；列本身可橫向捲動，避免被外層裁切 */}
+                            <div className="mt-4 min-w-0">
+                              <div className="flex flex-col gap-2 md:flex-row md:flex-nowrap md:items-stretch md:justify-start md:gap-3 md:overflow-x-auto md:overflow-y-visible md:pb-1 md:[-webkit-overflow-scrolling:touch]">
                               <button
                                 type="button"
                                 onClick={() =>
                                   router.push(
-                                    `/dashboard/teacher/play/${encodeURIComponent(item.gameCode)}?classGroupId=${encodeURIComponent(status.classGroup.id)}&sessionId=${encodeURIComponent(sessionId)}`
+                                    `/dashboard/teacher/play/${encodeURIComponent(item.gameCode)}?classGroupId=${encodeURIComponent(status.classGroup.id)}&sessionId=${encodeURIComponent(effectiveSessionId)}`
                                   )
                                 }
-                                className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-amber-400 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 shadow-sm transition hover:bg-amber-100 sm:w-auto sm:min-w-[7rem] md:min-w-[8rem]"
+                                className="inline-flex h-12 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-amber-400 bg-amber-50 px-4 text-sm font-bold text-amber-900 shadow-sm transition hover:bg-amber-100 md:h-11 md:w-auto md:min-w-[8.5rem]"
                               >
-                                <MonitorPlay className="h-4 w-4" />
+                                <MonitorPlay className="h-4 w-4 shrink-0" />
                                 進入示範
                               </button>
-                              <div className="flex flex-1 gap-2 sm:flex-initial sm:min-w-[220px] md:min-w-[240px]">
+                              <div className="grid grid-cols-2 gap-2 md:flex md:shrink-0 md:gap-2">
                                 <button
                                   type="button"
                                   disabled={saving}
                                   onClick={() => handleSetUnlock(item, status.classGroup.id, true)}
-                                  className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-bold transition sm:min-w-[100px] ${
+                                  className={`inline-flex h-12 min-h-[44px] items-center justify-center rounded-xl border-2 px-3 text-sm font-bold transition md:h-11 md:min-w-[6.5rem] ${
                                     item.isUnlocked
                                       ? 'border-emerald-600 bg-emerald-600 text-white shadow-md'
                                       : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-emerald-400 hover:bg-emerald-50'
@@ -415,7 +456,7 @@ export default function TeacherDashboard() {
                                   type="button"
                                   disabled={saving}
                                   onClick={() => handleSetUnlock(item, status.classGroup.id, false)}
-                                  className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-bold transition sm:min-w-[100px] ${
+                                  className={`inline-flex h-12 min-h-[44px] items-center justify-center rounded-xl border-2 px-3 text-sm font-bold transition md:h-11 md:min-w-[6.5rem] ${
                                     !item.isUnlocked
                                       ? 'border-gray-700 bg-gray-800 text-white shadow-md'
                                       : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-400 hover:bg-gray-100'
@@ -424,15 +465,17 @@ export default function TeacherDashboard() {
                                   {saving && !item.isUnlocked ? '…' : '關閉'}
                                 </button>
                               </div>
+                              </div>
                             </div>
                           </div>
                         );
                       })
-                    ) : sessionId && !isLoading ? (
+                    ) : effectiveSessionId && !isLoading ? (
                       <p className="py-8 text-center text-sm text-gray-500">此分類尚無活動</p>
                     ) : null}
                     </div>
                   </div>
+                </div>
                 </div>
               </div>
             )}

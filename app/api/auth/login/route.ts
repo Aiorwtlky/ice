@@ -11,6 +11,19 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
 );
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(label)), ms);
+    p.then((v) => {
+      clearTimeout(t);
+      resolve(v);
+    }).catch((e) => {
+      clearTimeout(t);
+      reject(e);
+    });
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -24,15 +37,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { account },
-      include: {
-        studentGroup: {
-          include: { activeTerm: true },
+    const user = await withTimeout(
+      prisma.user.findUnique({
+        where: { account },
+        include: {
+          studentGroup: {
+            include: { activeTerm: true },
+          },
+          teacherGroups: { include: { activeTerm: true } },
         },
-        teacherGroups: { include: { activeTerm: true } },
-      },
-    });
+      }),
+      5000,
+      'auth/login: prisma timeout'
+    );
 
     if (!user) {
       return NextResponse.json(
@@ -95,7 +112,5 @@ export async function POST(request: NextRequest) {
       { error: `伺服器錯誤，請稍後再試。${hint}` },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

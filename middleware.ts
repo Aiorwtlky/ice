@@ -50,16 +50,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // TEACHER：允許 /dashboard/teacher*；其餘導回
+  // TEACHER：允許 /dashboard/teacher*、班級競賽 /dashboard/competitions* 與共用表單 /dashboard/forms*
   if (role === 'TEACHER') {
-    const ok = pathname.startsWith('/dashboard/teacher');
+    const ok =
+      pathname.startsWith('/dashboard/teacher') ||
+      pathname.startsWith('/dashboard/competitions') ||
+      pathname.startsWith('/dashboard/forms');
     if (!ok) return NextResponse.redirect(new URL('/dashboard/teacher', request.url));
     return NextResponse.next();
   }
 
-  // ADMIN：允許 /dashboard/admin*；其餘導回
+  // ADMIN：允許 /dashboard/admin*、班級競賽 /dashboard/competitions* 與共用表單 /dashboard/forms*
   if (role === 'ADMIN') {
-    const ok = pathname.startsWith('/dashboard/admin');
+    const ok =
+      pathname.startsWith('/dashboard/admin') ||
+      pathname.startsWith('/dashboard/competitions') ||
+      pathname.startsWith('/dashboard/forms');
     if (!ok) return NextResponse.redirect(new URL('/dashboard/admin', request.url));
     return NextResponse.next();
   }

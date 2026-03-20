@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { answerToClientValue } from '@/app/api/_utils/forms';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key-change-in-production');
@@ -56,8 +57,64 @@ export async function GET(request: NextRequest) {
     select: { id: true, actionType: true, detail: true, createdAt: true },
   });
 
+  const gameModule = await prisma.gameModule.findUnique({
+    where: { id: gameModuleId },
+    select: {
+      code: true,
+      formActivity: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+    },
+  });
+
+  let formSubmission = null;
+  if (gameModule?.formActivity) {
+    const latestSubmission = await prisma.formSubmission.findFirst({
+      where: {
+        formActivityId: gameModule.formActivity.id,
+        userId,
+      },
+      orderBy: [{ attemptNumber: 'desc' }, { updatedAt: 'desc' }],
+      include: {
+        answers: {
+          include: {
+            question: {
+              select: {
+                id: true,
+                title: true,
+                type: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (latestSubmission) {
+      formSubmission = {
+        id: latestSubmission.id,
+        status: latestSubmission.status,
+        attemptNumber: latestSubmission.attemptNumber,
+        submittedAt: latestSubmission.submittedAt?.toISOString() ?? null,
+        updatedAt: latestSubmission.updatedAt.toISOString(),
+        title: gameModule.formActivity.title,
+        answers: latestSubmission.answers.map((answer) => ({
+          id: answer.id,
+          questionId: answer.questionId,
+          questionTitle: answer.question.title,
+          questionType: answer.question.type,
+          value: answerToClientValue(answer),
+        })),
+      };
+    }
+  }
+
   return NextResponse.json({
     student: { account: student.account, name: student.name },
+    formSubmission,
     logs: logs.map((l) => ({
       id: l.id,
       actionType: l.actionType,

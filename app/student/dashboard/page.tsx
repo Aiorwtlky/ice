@@ -107,16 +107,19 @@ export default function StudentTaskDashboard() {
             </div>
             {/* 手機：任務多時可捲動避免擠爆畫面 */}
             <div className="space-y-4 max-h-[62vh] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0">
-              {unlocked.map((item) => (
+              {unlocked.map((item) => {
+                const title =
+                  (item.gameName && String(item.gameName).trim()) || item.gameCode || '未命名活動';
+                return (
                 <button
                   type="button"
                   key={item.gameModuleId}
                   onClick={() => router.push('/student/games/' + item.gameCode)}
                   className="group w-full flex items-center justify-between gap-4 rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-white p-6 shadow-lg transition-all hover:border-amber-500 hover:shadow-amber-200/50 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
                 >
-                  <div className="min-w-0 text-left">
-                    <p className="truncate text-lg font-bold text-gray-900 group-hover:text-amber-700" title={item.gameName}>
-                      {item.gameName}
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="text-lg font-bold leading-snug break-words text-gray-900 group-hover:text-amber-700">
+                      {title}
                     </p>
                     <p className="text-sm font-semibold text-amber-700 mt-1 flex items-center gap-1">
                       進入任務
@@ -127,7 +130,8 @@ export default function StudentTaskDashboard() {
                     <Gamepad2 className="h-6 w-6" />
                   </div>
                 </button>
-              ))}
+              );
+              })}
             </div>
           </div>
         )}

@@ -16,15 +16,27 @@ enum UserRole {
   ADMIN
 }
 
-model Term {
-  id        String       @id @default(uuid())
-  name      String
-  isActive  Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+enum FormQuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TEXT
+  NUMBER
+}
 
-  gameModules  GameModule[]
-  activeClassGroups  ClassGroup[] @relation("ActiveTerm")
+enum FormSubmissionStatus {
+  DRAFT
+  SUBMITTED
+}
+
+model Term {
+  id        String   @id @default(uuid())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gameModules       GameModule[]
+  activeClassGroups ClassGroup[] @relation("ActiveTerm")
 
   @@map("terms")
 }
@@ -32,17 +44,18 @@ model Term {
 model GameModule {
   id          String   @id @default(uuid())
   termId      String
-  code        String   // 例如: HANOI, CLICK_1, CLICK_2
+  code        String // 例如: HANOI, CLICK_1, CLICK_2
   name        String
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  term                Term                @relation(fields: [termId], references: [id], onDelete: Cascade)
+  term               Term                @relation(fields: [termId], references: [id], onDelete: Cascade)
   classGameUnlocks   ClassGameUnlock[]
   sessionGameUnlocks SessionGameUnlock[]
   systemLogs         SystemLog[]
   learningLogs       LearningLog[]
+  formActivity       FormActivity?
 
   @@unique([termId, code])
   @@map("game_modules")
@@ -51,45 +64,52 @@ model GameModule {
 model User {
   id             String   @id @default(uuid())
   account        String   @unique
-  name           String?  // 學員可暫不設姓名，顯示時以 account 補上
+  name           String? // 學員可暫不設姓名，顯示時以 account 補上
   role           UserRole
   schoolCode     String?
   passwordHash   String
-  gender         String?  // 學員 Onboarding：男/女
-  grade          String?  // 學員 Onboarding：三年級～六年級
-  avatarUrl      String?  // 講師/Admin 大頭照
+  gender         String? // 學員 Onboarding：男/女
+  grade          String? // 學員 Onboarding：三年級～六年級
+  avatarUrl      String? // 講師/Admin 大頭照
   onboardingDone Boolean  @default(false) // 學員是否已填過人口變項
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  teacherGroups           ClassGroup[]         @relation("TeacherClassGroup")
+  teacherGroups                ClassGroup[]        @relation("TeacherClassGroup")
   classGroupTeacherAssignments ClassGroupTeacher[] @relation("ClassGroupTeacherUser")
-  studentGroup            ClassGroup?          @relation("StudentClassGroup", fields: [studentGroupId], references: [id])
-  studentGroupId         String?
+  studentGroup                 ClassGroup?         @relation("StudentClassGroup", fields: [studentGroupId], references: [id])
+  studentGroupId               String?
 
-  systemLogs   SystemLog[]
-  learningLogs LearningLog[]
+  systemLogs            SystemLog[]
+  learningLogs          LearningLog[]
+  createdFormActivities FormActivity[]   @relation("FormActivityCreator")
+  formSubmissions       FormSubmission[]
+  formAnswerLogs        FormAnswerLog[]
+  createdCompetitions   ClassCompetition[]      @relation("CompetitionCreator")
+  competitionScores     ClassCompetitionScore[]
+  competitionLogs       ClassCompetitionLog[]
 
   @@map("users")
 }
 
 model ClassGroup {
-  id          String   @id @default(uuid())
-  name        String   // 班級名稱
-  schoolCode  String   // 班級代碼
-  teacherId   String   // 主講師
+  id           String   @id @default(uuid())
+  name         String // 班級名稱
+  schoolCode   String // 班級代碼
+  teacherId    String // 主講師
   activeTermId String? // 當前使用的期數（期數負責裝遊戲/測驗；班級本身永久）
-  loginLocked Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  loginLocked  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  activeTerm          Term?                @relation("ActiveTerm", fields: [activeTermId], references: [id], onDelete: SetNull)
-  teacher             User                 @relation("TeacherClassGroup", fields: [teacherId], references: [id])
-  teachers            ClassGroupTeacher[]  @relation("ClassGroupTeachers")
-  students            User[]               @relation("StudentClassGroup")
-  sessions            Session[]
-  classGameUnlocks    ClassGameUnlock[]
-  systemLogs          SystemLog[]
+  activeTerm       Term?               @relation("ActiveTerm", fields: [activeTermId], references: [id], onDelete: SetNull)
+  teacher          User                @relation("TeacherClassGroup", fields: [teacherId], references: [id])
+  teachers         ClassGroupTeacher[] @relation("ClassGroupTeachers")
+  students         User[]              @relation("StudentClassGroup")
+  sessions         Session[]
+  classGameUnlocks ClassGameUnlock[]
+  systemLogs       SystemLog[]
+  competitions     ClassCompetition[]
 
   @@map("class_groups")
 }
@@ -113,8 +133,8 @@ model LearningLog {
   id           String   @id @default(uuid())
   userId       String
   gameModuleId String?
-  actionType   String   // START | COMPLETE | ANSWER_QUESTION 等
-  detail       Json?    // 分數、答題內容等
+  actionType   String // START | COMPLETE | ANSWER_QUESTION 等
+  detail       Json? // 分數、答題內容等
   createdAt    DateTime @default(now())
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -125,16 +145,16 @@ model LearningLog {
 
 // 堂次：例如 3/21 第一堂，該堂可有多個問卷/遊戲，老師控制解鎖
 model Session {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   classGroupId String
-  name         String   // 例：第一堂
+  name         String // 例：第一堂
   sessionAt    DateTime? // 例：2026-03-21
-  order        Int      @default(1)  // 1～4
-  isActive     Boolean  @default(false)  // 該班目前進行中的堂次（學員端用）
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  order        Int       @default(1) // 1～4
+  isActive     Boolean   @default(false) // 該班目前進行中的堂次（學員端用）
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup          @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
   unlocks    SessionGameUnlock[]
   systemLogs SystemLog[]
 
@@ -149,7 +169,7 @@ model SessionGameUnlock {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  session   Session    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session    Session    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   gameModule GameModule @relation(fields: [gameModuleId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, gameModuleId])
@@ -177,16 +197,212 @@ model SystemLog {
   classGroupId String?
   sessionId    String?
   gameModuleId String?
-  action       String   // START | MOVE | HELP | ERROR | SUCCESS | TAB_LEAVE | TAB_ENTER | PING | UNLOCK_TASK | VIEW_STUDENT_DATA 等
+  action       String // START | MOVE | HELP | ERROR | SUCCESS | TAB_LEAVE | TAB_ENTER | PING | UNLOCK_TASK | VIEW_STUDENT_DATA 等
   isCorrect    Boolean?
   timeDiffMs   Int?
-  payload      Json?    // 任意 JSON：按鈕 id、河內塔 from/to/積木編號、raw_data 等，論文用
+  payload      Json? // 任意 JSON：按鈕 id、河內塔 from/to/積木編號、raw_data 等，論文用
   createdAt    DateTime @default(now())
 
-  user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  classGroup ClassGroup?  @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
-  session    Session?     @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  gameModule GameModule?  @relation(fields: [gameModuleId], references: [id], onDelete: SetNull)
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  classGroup ClassGroup? @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
+  session    Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  gameModule GameModule? @relation(fields: [gameModuleId], references: [id], onDelete: SetNull)
 
   @@map("system_logs")
+}
+
+model FormActivity {
+  id                       String   @id @default(uuid())
+  gameModuleId             String   @unique
+  createdByUserId          String
+  title                    String
+  description              String?
+  allowMultipleSubmissions Boolean  @default(false)
+  allowEditAfterSubmit     Boolean  @default(false)
+  allowViewAfterSubmit     Boolean  @default(true)
+  isPublished              Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  gameModule  GameModule       @relation(fields: [gameModuleId], references: [id], onDelete: Cascade)
+  createdBy   User             @relation("FormActivityCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  questions   FormQuestion[]
+  submissions FormSubmission[]
+  answerLogs  FormAnswerLog[]
+
+  @@map("form_activities")
+}
+
+model FormQuestion {
+  id             String           @id @default(uuid())
+  formActivityId String
+  orderIndex     Int
+  title          String
+  description    String?
+  type           FormQuestionType
+  isRequired     Boolean          @default(false)
+  placeholder    String?
+  minValue       Float?
+  maxValue       Float?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  formActivity FormActivity         @relation(fields: [formActivityId], references: [id], onDelete: Cascade)
+  options      FormQuestionOption[]
+  answers      FormAnswer[]
+  logs         FormAnswerLog[]
+
+  @@index([formActivityId, orderIndex])
+  @@map("form_questions")
+}
+
+model FormQuestionOption {
+  id         String   @id @default(uuid())
+  questionId String
+  orderIndex Int
+  label      String
+  value      String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question FormQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId, orderIndex])
+  @@map("form_question_options")
+}
+
+model FormSubmission {
+  id             String               @id @default(uuid())
+  formActivityId String
+  userId         String
+  status         FormSubmissionStatus @default(DRAFT)
+  attemptNumber  Int                  @default(1)
+  submittedAt    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  formActivity FormActivity    @relation(fields: [formActivityId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers      FormAnswer[]
+  logs         FormAnswerLog[]
+
+  @@index([formActivityId, userId])
+  @@map("form_submissions")
+}
+
+model FormAnswer {
+  id           String   @id @default(uuid())
+  submissionId String
+  questionId   String
+  answerText   String?
+  answerNumber Float?
+  answerJson   Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   FormQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, questionId])
+  @@map("form_answers")
+}
+
+model FormAnswerLog {
+  id             String   @id @default(uuid())
+  formActivityId String
+  submissionId   String?
+  questionId     String?
+  userId         String
+  actionType     String
+  detail         Json?
+  createdAt      DateTime @default(now())
+
+  formActivity FormActivity    @relation(fields: [formActivityId], references: [id], onDelete: Cascade)
+  submission   FormSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  question     FormQuestion?   @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([formActivityId, userId, createdAt])
+  @@map("form_answer_logs")
+}
+
+// --- 班級競賽（與「活動／遊戲模組」分離；各班獨立排行榜） ---
+
+enum CompetitionKind {
+  HANOI_TOWER
+}
+
+enum CompetitionMode {
+  TIME_LIMIT // 限時
+  MOVE_LIMIT // 計次（對外稱呼；列舉名保留以利既有資料相容）
+}
+
+enum CompetitionStatus {
+  DRAFT
+  OPEN
+  PAUSED
+  ENDED
+}
+
+model ClassCompetition {
+  id             String            @id @default(uuid())
+  classGroupId   String
+  name           String
+  kind           CompetitionKind   @default(HANOI_TOWER)
+  mode           CompetitionMode
+  status         CompetitionStatus @default(DRAFT)
+  discCount      Int // 3–10（河內塔）
+  timeLimitSec   Int? // 限時模式：秒
+  moveLimit      Int? // 計次模式：比較／門檻用步數（以合法 DROP 步數為準）
+  rulesText      String?           @db.Text
+  openedAt       DateTime?
+  endedAt        DateTime?
+  pauseStartedAt DateTime?
+  totalPausedMs  Int               @default(0)
+  createdById    String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  classGroup ClassGroup               @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  createdBy  User                     @relation("CompetitionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  scores     ClassCompetitionScore[]
+  logs       ClassCompetitionLog[]
+
+  @@index([classGroupId, status])
+  @@map("class_competitions")
+}
+
+model ClassCompetitionScore {
+  id            String   @id @default(uuid())
+  competitionId String
+  userId        String
+  bestSteps     Int // 合法完成的最少步數（越小越好）
+  bestTimeMs    Int? // 完成該成績時的耗時（毫秒），限時模式可記錄
+  lastPlayedAt  DateTime @default(now())
+  attemptCount  Int      @default(0)
+  detail        Json?
+
+  competition ClassCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, userId])
+  @@index([competitionId, bestSteps])
+  @@map("class_competition_scores")
+}
+
+model ClassCompetitionLog {
+  id            String   @id @default(uuid())
+  competitionId String
+  userId        String
+  action        String
+  payload       Json?
+  timeDiffMs    Int?
+  isCorrect     Boolean?
+  createdAt     DateTime @default(now())
+
+  competition ClassCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([competitionId, userId, createdAt])
+  @@map("class_competition_logs")
 }

@@ -44,13 +44,13 @@ interface TeacherRow {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<{ name: string; account: string } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [tab, setTab] = useState<AdminTab>('classes');
   const menuRef = useRef<HTMLDivElement>(null);
 
   const { data: meData } = useSWR<{ user?: { name: string; account: string; role: string } }>('/api/auth/me', fetcher);
+  const user = meData?.user && meData.user.role === 'ADMIN' ? meData.user : null;
+  const loading = !meData;
   const { data: classesData, mutate: mutateClasses } = useSWR<{ classes: ClassItem[] }>(user ? '/api/admin/classes' : null, fetcher);
   const { data: termsData, mutate: mutateTerms } = useSWR<{ terms: { id: string; name: string }[] }>(user ? '/api/admin/terms' : null, fetcher);
   const { data: usersData, mutate: mutateUsers } = useSWR<{ users: { id: string; account: string; name: string | null; role: string; createdAt: string }[] }>(user ? '/api/admin/users' : null, fetcher);
@@ -59,8 +59,6 @@ export default function AdminDashboard() {
     if (!meData) return;
     if (!meData.user) { router.replace('/'); return; }
     if (meData.user.role !== 'ADMIN') { router.replace('/dashboard'); return; }
-    setUser(meData.user);
-    setLoading(false);
   }, [meData, router]);
 
   useEffect(() => {
@@ -109,9 +107,9 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-hidden p-4 md:p-6 lg:p-8 flex items-center justify-center">
-        <div className="mx-auto grid w-full max-w-7xl h-full min-h-0 gap-6 lg:grid-cols-12 items-stretch">
-          <div className="rounded-2xl border border-gray-200/60 bg-white/90 p-6 shadow-lg backdrop-blur-sm min-h-0 lg:col-span-4">
+      <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 lg:overflow-hidden lg:flex lg:items-center lg:justify-center">
+        <div className="mx-auto grid w-full max-w-7xl min-h-0 gap-6 lg:h-full lg:grid-cols-12 items-stretch">
+          <div className="rounded-2xl border border-gray-200/60 bg-white/90 p-5 shadow-lg backdrop-blur-sm min-h-0 lg:col-span-4 lg:p-6">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-700"><UserCircle className="h-6 w-6" /></div>
               <div>
@@ -124,9 +122,16 @@ export default function AdminDashboard() {
               <div><p className="text-gray-500">講師數</p><p className="text-lg font-bold text-gray-900">{teachers.length}</p></div>
               <div><p className="text-gray-500">班級數</p><p className="text-lg font-bold text-gray-900">{classes.length}</p></div>
             </div>
+            <button
+              type="button"
+              onClick={() => router.push('/dashboard/competitions')}
+              className="mt-4 w-full rounded-xl border border-violet-300 bg-violet-50 py-2.5 text-sm font-bold text-violet-900 hover:bg-violet-100"
+            >
+              班級競賽管理
+            </button>
           </div>
 
-          <div className="rounded-2xl border border-gray-200/60 bg-white/90 p-6 shadow-lg backdrop-blur-sm min-h-0 flex flex-col lg:col-span-8">
+          <div className="rounded-2xl border border-gray-200/60 bg-white/90 p-5 shadow-lg backdrop-blur-sm min-h-0 flex flex-col lg:col-span-8 lg:p-6">
             <div className="mb-4 flex flex-wrap gap-2">
               {([
                 ['teachers', GraduationCap, '講師帳號'],
@@ -298,11 +303,17 @@ function TermsTab({ terms, onMutate }: { terms: { id: string; name: string }[]; 
     }
     if (!term) { alert('找不到 3/21資訊教育 分類'); return; }
 
-    // 2) 建立三個河內塔模組（若已存在則略過錯誤提示）
+    // 2) 建立活動模組（若已存在則略過錯誤提示）
     const modules = [
       { code: 'HANOI_3', name: '三層的河內塔', description: '三層河內塔' },
       { code: 'HANOI_4', name: '四層的河內塔', description: '四層河內塔' },
       { code: 'HANOI_5', name: '五層的河內塔', description: '五層河內塔' },
+      { code: 'HANOI_6', name: '六層的河內塔', description: '六層河內塔' },
+      { code: 'HANOI_7', name: '七層的河內塔', description: '七層河內塔' },
+      { code: 'HANOI_8', name: '八層的河內塔', description: '八層河內塔' },
+      { code: 'MONSTER_GOBBLER', name: '怪獸大胃王', description: '餵食 push；腸胃順暢 shift（Queue）；反芻模式 pop（Stack）' },
+      { code: 'BUBBLE_TEA_MASTER', name: '手搖飲大師', description: '狂加配料 push；粗吸管 shift（佇列）；長湯匙 pop（堆疊）' },
+      { code: 'MAGIC_PANCAKE_TOWER', name: '魔法鬆餅塔', description: '堆疊 Stack：只能從頂部操作；push 疊上去、pop 拿走；Level 2 用備用盤子移走上層找目標' },
     ];
     for (const m of modules) {
       const r = await fetch('/api/admin/game-modules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ termId: term.id, code: m.code, name: m.name, description: m.description }) });
@@ -312,7 +323,7 @@ function TermsTab({ terms, onMutate }: { terms: { id: string; name: string }[]; 
         if (String((d as { error?: string }).error ?? '').includes('Unique') || String((d as { error?: string }).error ?? '').includes('已存在')) continue;
       }
     }
-    alert('已建立：3/21資訊教育 + 河內塔（3/4/5 層）');
+    alert('已建立：3/21資訊教育 + 河內塔（3/4/5/6/7/8）+ 怪獸大胃王 + 手搖飲大師 + 魔法鬆餅塔');
   };
 
   return (
@@ -321,7 +332,9 @@ function TermsTab({ terms, onMutate }: { terms: { id: string; name: string }[]; 
       <div className="flex flex-wrap gap-2">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="新分類名稱" className="rounded-xl border px-4 py-2.5 text-sm w-48" />
         <button type="button" onClick={add} className="rounded-xl bg-gray-700 px-4 py-2.5 text-sm font-bold text-white">新增分類</button>
-        <button type="button" onClick={ensure321} className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white">一鍵新增 3/21資訊教育 + 河內塔</button>
+        <button type="button" onClick={() => window.location.href = '/dashboard/forms'} className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-800">管理表單活動</button>
+        <button type="button" onClick={() => window.location.href = '/dashboard/forms/new'} className="rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-sm font-bold text-amber-800">新增表單活動</button>
+        <button type="button" onClick={ensure321} className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white">一鍵新增 3/21資訊教育 + 河內塔（3/4/5/6/7/8）+ 怪獸大胃王 + 手搖飲大師 + 魔法鬆餅塔</button>
       </div>
       <div className="rounded-xl border border-gray-200 divide-y">
         {terms.map((t) => (

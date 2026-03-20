@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import Link from 'next/link';
@@ -28,18 +28,27 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 function TeacherPreviewPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [ok, setOk] = useState(false);
   const [classId, setClassId] = useState<string | null>(null);
 
   const { data: meData } = useSWR<{ user?: { role: string } }>('/api/auth/me', fetcher);
+  const role = meData?.user?.role ?? null;
+  const ok = role === 'TEACHER' || role === 'ADMIN';
   const { data: classesData } = useSWR<{ classes: TeacherClass[] }>(ok ? '/api/teacher/classes' : null, fetcher);
   const classes = classesData?.classes ?? [];
 
-  const statusUrl = classId ? `/api/games/status?classGroupId=${classId}` : null;
+  const urlClassId = searchParams.get('classGroupId');
+  const effectiveClassId = useMemo(() => {
+    if (classId) return classId;
+    if (!classes.length) return null;
+    const valid = urlClassId && classes.some((c) => c.id === urlClassId);
+    return valid ? urlClassId : classes[0].id;
+  }, [classId, classes, urlClassId]);
+
+  const statusUrl = effectiveClassId ? `/api/games/status?classGroupId=${effectiveClassId}` : null;
   const { data: status } = useSWR<StatusData & { error?: string }>(statusUrl, fetcher);
 
   const { data: studentsData } = useSWR<{ students: { id: string; account: string; name: string | null }[] }>(
-    classId ? `/api/class-groups/${classId}/students` : null,
+    effectiveClassId ? `/api/class-groups/${effectiveClassId}/students` : null,
     fetcher
   );
   const students = studentsData?.students ?? [];
@@ -50,19 +59,11 @@ function TeacherPreviewPageInner() {
       router.replace('/');
       return;
     }
-    if (meData.user.role !== 'TEACHER' && meData.user.role !== 'ADMIN') {
+    if (!ok) {
       router.replace('/dashboard');
       return;
     }
-    setOk(true);
   }, [meData, router]);
-
-  const urlClassId = searchParams.get('classGroupId');
-  useEffect(() => {
-    if (!classes.length) return;
-    const valid = urlClassId && classes.some((c) => c.id === urlClassId);
-    setClassId(valid ? urlClassId : classes[0].id);
-  }, [classes, urlClassId]);
 
   const unlocked = status?.unlocks?.filter((u) => u.isUnlocked) ?? [];
   const allLocked = status?.unlocks && status.unlocks.length > 0 && unlocked.length === 0;
@@ -91,7 +92,7 @@ function TeacherPreviewPageInner() {
           <div className="mb-4">
             <label className="mb-1 block text-sm font-medium text-gray-700">選擇班級</label>
             <select
-              value={classId ?? ''}
+              value={effectiveClassId ?? ''}
               onChange={(e) => setClassId(e.target.value || null)}
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
             >
@@ -102,7 +103,7 @@ function TeacherPreviewPageInner() {
           </div>
         )}
 
-        {classId && (
+        {effectiveClassId && (
           <>
             <section className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">

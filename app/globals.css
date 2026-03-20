@@ -44,6 +44,25 @@ body {
   }
 }
 
+/* 河內塔班級競賽：背景網格漂移 */
+@keyframes hanoi-tech-drift {
+  0% {
+    background-position: 0 0, 0 0, 50% 0%;
+  }
+  100% {
+    background-position: 280px 140px, -140px 80px, 50% 0%;
+  }
+}
+
+.hanoi-tech-grid {
+  background-image:
+    linear-gradient(90deg, rgba(56, 189, 248, 0.12) 1px, transparent 1px),
+    linear-gradient(rgba(56, 189, 248, 0.1) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.25), transparent 55%);
+  background-size: 28px 28px, 28px 28px, 100% 100%;
+  animation: hanoi-tech-drift 18s linear infinite;
+}
+
 .flowing-bg {
   position: fixed;
   inset: 0;

@@ -19,6 +19,7 @@ async function getTeacher() {
         id: true,
         role: true,
         teacherGroups: { select: { id: true } },
+        classGroupTeacherAssignments: { select: { classGroupId: true } },
       },
     });
     if (!user || (user.role !== 'TEACHER' && user.role !== 'ADMIN')) return null;
@@ -31,8 +32,8 @@ export async function GET() {
   const teacher = await getTeacher();
   if (!teacher) return NextResponse.json({ error: '未登入或權限不足' }, { status: 403 });
   const mainIds = teacher.teacherGroups.map((g) => g.id);
-  // 單班規則：老師只看自己主講班（不支援被指派到多班）
-  const allIds = [...new Set([...mainIds])];
+  const assignedIds = teacher.classGroupTeacherAssignments.map((a) => a.classGroupId);
+  const allIds = [...new Set([...mainIds, ...assignedIds])];
   if (allIds.length === 0) return NextResponse.json({ classes: [] });
   const classes = await prisma.classGroup.findMany({
     where: { id: { in: allIds } },
