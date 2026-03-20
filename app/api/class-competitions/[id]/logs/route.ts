@@ -14,11 +14,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const c = await prisma.classCompetition.findUnique({
     where: { id },
-    select: { classGroupId: true, status: true },
+    select: { classGroupId: true, status: true, hiddenFromStudents: true },
   });
   if (!c) return NextResponse.json({ error: '找不到' }, { status: 404 });
   if (!assertStudentInClass(auth, c.classGroupId)) {
     return NextResponse.json({ error: '無權限' }, { status: 403 });
+  }
+  if (c.hiddenFromStudents) {
+    return NextResponse.json({ error: '找不到' }, { status: 404 });
   }
 
   let body: Record<string, unknown>;

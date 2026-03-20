@@ -21,6 +21,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!assertStudentInClass(auth, c.classGroupId)) {
     return NextResponse.json({ error: '無權限' }, { status: 403 });
   }
+  if (c.hiddenFromStudents) {
+    return NextResponse.json({ error: '找不到' }, { status: 404 });
+  }
   if (c.status !== CompetitionStatus.OPEN) {
     return NextResponse.json({ error: '比賽未開放或已暫停／結束' }, { status: 400 });
   }

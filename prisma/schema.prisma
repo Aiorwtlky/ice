@@ -88,6 +88,8 @@ model User {
   createdCompetitions   ClassCompetition[]      @relation("CompetitionCreator")
   competitionScores     ClassCompetitionScore[]
   competitionLogs       ClassCompetitionLog[]
+  announcementsCreated  ClassAnnouncement[]     @relation("AnnouncementCreator")
+  announcementReads     AnnouncementRead[]
 
   @@map("users")
 }
@@ -110,6 +112,7 @@ model ClassGroup {
   classGameUnlocks ClassGameUnlock[]
   systemLogs       SystemLog[]
   competitions     ClassCompetition[]
+  announcements    ClassAnnouncement[]
 
   @@map("class_groups")
 }
@@ -359,6 +362,8 @@ model ClassCompetition {
   endedAt        DateTime?
   pauseStartedAt DateTime?
   totalPausedMs  Int               @default(0)
+  /** 若為 true，學生端列表／詳情不顯示（老師仍可在後台看到） */
+  hiddenFromStudents Boolean       @default(false)
   createdById    String
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
@@ -405,4 +410,43 @@ model ClassCompetitionLog {
 
   @@index([competitionId, userId, createdAt])
   @@map("class_competition_logs")
+}
+
+// --- 班級公告（老師發布所屬班；管理員可選班級）---
+
+model ClassAnnouncement {
+  id           String    @id @default(uuid())
+  classGroupId String
+  title        String
+  body         String    @db.Text
+  createdById  String
+  /** 學生端開始顯示（含） */
+  visibleFrom  DateTime  @default(now())
+  /** 截止後列表隱藏（壓時間）；null 表示無截止 */
+  visibleUntil DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  classGroup ClassGroup           @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  createdBy  User                 @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  reads      AnnouncementRead[]
+
+  @@index([classGroupId, visibleFrom])
+  @@map("class_announcements")
+}
+
+model AnnouncementRead {
+  id             String   @id @default(uuid())
+  announcementId String
+  userId         String
+  firstOpenedAt  DateTime @default(now())
+  lastOpenedAt   DateTime @default(now())
+  openCount      Int      @default(1)
+
+  announcement ClassAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@map("announcement_reads")
 }

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
-import { Trophy, Plus, Play, Pause, Square, ListOrdered, ChevronLeft } from 'lucide-react';
+import { Trophy, Plus, Play, Pause, Square, ListOrdered, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -17,6 +17,7 @@ type CompetitionRow = {
   timeLimitSec: number | null;
   moveLimit: number | null;
   openedAt: string | null;
+  hiddenFromStudents?: boolean;
   _count?: { scores: number; logs: number };
 };
 
@@ -116,7 +117,20 @@ function DashboardCompetitionsPageInner() {
     const res = await fetch(`/api/class-competitions/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ status }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) alert((d as { error?: string }).error || '更新失敗');
+    else mutate();
+  };
+
+  const patchStudentVisibility = async (id: string, hiddenFromStudents: boolean) => {
+    const res = await fetch(`/api/class-competitions/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ hiddenFromStudents }),
     });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) alert((d as { error?: string }).error || '更新失敗');
@@ -247,7 +261,9 @@ function DashboardCompetitionsPageInner() {
 
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-extrabold text-gray-900">比賽列表</h2>
-          <p className="mt-1 text-sm text-gray-500">草稿 → 按「開放」後學生可進入；可暫停、結束。</p>
+          <p className="mt-1 text-sm text-gray-500">
+            草稿 → 按「開放」後學生可進入；可暫停、結束。已結束的比賽可「對學生隱藏」，學生儀表板將不再顯示（限時結束後常用）。
+          </p>
           <ul className="mt-4 space-y-3">
             {competitions.map((row) => (
               <li
@@ -262,6 +278,11 @@ function DashboardCompetitionsPageInner() {
                       {row.mode === 'TIME_LIMIT' ? `限時 ${row.timeLimitSec}s` : '計次（比步數）'}
                       ·{' '}
                       <span className="font-semibold text-amber-800">{row.status}</span>
+                      {row.hiddenFromStudents ? (
+                        <span className="ml-1.5 rounded bg-violet-100 px-1.5 py-0.5 font-bold text-violet-800">
+                          學生端已隱藏
+                        </span>
+                      ) : null}
                     </p>
                     <p className="text-xs text-gray-400">
                       成績筆數 {row._count?.scores ?? 0} · log {row._count?.logs ?? 0}
@@ -317,6 +338,25 @@ function DashboardCompetitionsPageInner() {
                           結束
                         </button>
                       </>
+                    )}
+                    {row.status === 'ENDED' && (
+                      <button
+                        type="button"
+                        onClick={() => patchStudentVisibility(row.id, !row.hiddenFromStudents)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800"
+                      >
+                        {row.hiddenFromStudents ? (
+                          <>
+                            <Eye className="h-3.5 w-3.5" />
+                            恢復學生端顯示
+                          </>
+                        ) : (
+                          <>
+                            <EyeOff className="h-3.5 w-3.5" />
+                            對學生隱藏
+                          </>
+                        )}
+                      </button>
                     )}
                     <button
                       type="button"

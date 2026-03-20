@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 import useSWR from 'swr';
 import GameFrame from '@/components/GameFrame';
 import { HanoiGame, Click1Game, Click2Game, MonsterGobblerGame, BubbleTeaMasterGame, MagicPancakeTowerGame } from '@/components/games/StudentGameViews';
+import { TeachingStack, TeachingQueue, TeachingHanoiRecursive, TeachingModuleShell } from '@/components/teaching';
 import FormActivityPlayer from '@/components/forms/FormActivityPlayer';
 import { useGameLog } from '@/hooks/useGameLog';
 
@@ -59,6 +60,7 @@ export default function StudentGamePage() {
   }, [authChecked, gameModuleId, sendLog]);
 
   const headerTitle = 'NovaInsight 資訊科普教育平台';
+  const headerMenuLinks = [{ label: '📢 班級公告', href: '/student/announcements' }];
 
   if (!authChecked) {
     return (
@@ -81,6 +83,7 @@ export default function StudentGamePage() {
   if (gameCode === 'CLICK_1') {
     return (
       <GameFrame
+        headerMenuLinks={headerMenuLinks}
         headerTitle={headerTitle}
         userLabel={user?.account}
         userAvatar={user?.account?.slice(0, 2).toUpperCase()}
@@ -100,6 +103,7 @@ export default function StudentGamePage() {
   if (gameCode === 'CLICK_2') {
     return (
       <GameFrame
+        headerMenuLinks={headerMenuLinks}
         headerTitle={headerTitle}
         userLabel={user?.account}
         userAvatar={user?.account?.slice(0, 2).toUpperCase()}
@@ -128,6 +132,7 @@ export default function StudentGamePage() {
   if (hanoiN) {
     return (
       <GameFrame
+        headerMenuLinks={headerMenuLinks}
         headerTitle={headerTitle}
         userLabel={user?.account}
         userAvatar={user?.account?.slice(0, 2).toUpperCase()}
@@ -150,6 +155,7 @@ export default function StudentGamePage() {
   if (gameCode === 'MONSTER_GOBBLER') {
     return (
       <GameFrame
+        headerMenuLinks={headerMenuLinks}
         headerTitle={headerTitle}
         userLabel={user?.account}
         userAvatar={user?.account?.slice(0, 2).toUpperCase()}
@@ -172,6 +178,7 @@ export default function StudentGamePage() {
   if (gameCode === 'BUBBLE_TEA_MASTER') {
     return (
       <GameFrame
+        headerMenuLinks={headerMenuLinks}
         headerTitle={headerTitle}
         userLabel={user?.account}
         userAvatar={user?.account?.slice(0, 2).toUpperCase()}
@@ -194,6 +201,7 @@ export default function StudentGamePage() {
   if (gameCode === 'MAGIC_PANCAKE_TOWER') {
     return (
       <GameFrame
+        headerMenuLinks={headerMenuLinks}
         headerTitle={headerTitle}
         userLabel={user?.account}
         userAvatar={user?.account?.slice(0, 2).toUpperCase()}
@@ -213,9 +221,73 @@ export default function StudentGamePage() {
     );
   }
 
+  if (gameCode === 'TEACH_STACK') {
+    return (
+      <GameFrame
+        headerMenuLinks={headerMenuLinks}
+        headerTitle={headerTitle}
+        userLabel={user?.account}
+        userAvatar={user?.account?.slice(0, 2).toUpperCase()}
+        onBack={handleBack}
+        onLogout={handleLogout}
+        onHelpLog={() => sendLog('HELP')}
+        helpTip="Push 放入、Pop 取出；紅箭頭為 Top"
+        mainLayout="fill"
+        headerSubtitle="教學模組 · Stack"
+      >
+        <TeachingModuleShell title="Stack（堆疊）教學" subtitle="後進先出（LIFO）">
+          <TeachingStack />
+        </TeachingModuleShell>
+      </GameFrame>
+    );
+  }
+
+  if (gameCode === 'TEACH_QUEUE') {
+    return (
+      <GameFrame
+        headerMenuLinks={headerMenuLinks}
+        headerTitle={headerTitle}
+        userLabel={user?.account}
+        userAvatar={user?.account?.slice(0, 2).toUpperCase()}
+        onBack={handleBack}
+        onLogout={handleLogout}
+        onHelpLog={() => sendLog('HELP')}
+        helpTip="Enqueue 從右進、Dequeue 從左出"
+        mainLayout="fill"
+        headerSubtitle="教學模組 · Queue"
+      >
+        <TeachingModuleShell title="Queue（佇列）教學" subtitle="先進先出（FIFO）">
+          <TeachingQueue />
+        </TeachingModuleShell>
+      </GameFrame>
+    );
+  }
+
+  if (gameCode === 'TEACH_HANOI_RECURSION') {
+    return (
+      <GameFrame
+        headerMenuLinks={headerMenuLinks}
+        headerTitle={headerTitle}
+        userLabel={user?.account}
+        userAvatar={user?.account?.slice(0, 2).toUpperCase()}
+        onBack={handleBack}
+        onLogout={handleLogout}
+        onHelpLog={() => sendLog('HELP')}
+        helpTip="播放／單步觀察盤子移動與右側 Call Stack"
+        mainLayout="fill"
+        headerSubtitle="教學模組 · 河內塔與遞迴"
+      >
+        <TeachingModuleShell title="河內塔（遞迴）教學" subtitle="盤子移動動畫 + 遞迴呼叫堆疊">
+          <TeachingHanoiRecursive />
+        </TeachingModuleShell>
+      </GameFrame>
+    );
+  }
+
   if (gameCode.startsWith('FORM_')) {
     return (
       <GameFrame
+        headerMenuLinks={headerMenuLinks}
         headerTitle={headerTitle}
         userLabel={user?.account}
         userAvatar={user?.account?.slice(0, 2).toUpperCase()}
@@ -239,7 +311,14 @@ export default function StudentGamePage() {
   }
 
   return (
-    <GameFrame headerTitle={headerTitle} userLabel={user?.account} userAvatar={user?.account?.slice(0, 2).toUpperCase()} onBack={handleBack} onLogout={handleLogout}>
+    <GameFrame
+      headerMenuLinks={headerMenuLinks}
+      headerTitle={headerTitle}
+      userLabel={user?.account}
+      userAvatar={user?.account?.slice(0, 2).toUpperCase()}
+      onBack={handleBack}
+      onLogout={handleLogout}
+    >
       <div className="flex h-full flex-col items-center justify-center p-6">
         <h1 className="text-xl font-bold text-gray-900">{gameName} 載入中...</h1>
         <p className="mt-2 text-sm text-gray-500">這裡之後會放真正的遊戲畫布</p>

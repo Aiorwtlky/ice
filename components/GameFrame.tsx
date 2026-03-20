@@ -21,6 +21,8 @@ export interface GameFrameProps {
   userAvatar?: string;
   /** 右上角選單：登出（可選） */
   onLogout?: () => void | Promise<void>;
+  /** 頁首使用者選單內、登出上方的額外連結（例：學員「班級公告」） */
+  headerMenuLinks?: { label: string; href: string }[];
   /** 左下按鈕：返回（可選；未提供就不顯示） */
   onBack?: () => void;
   /** 是否顯示返回按鈕（預設：onBack 有提供才顯示） */
@@ -48,6 +50,7 @@ export default function GameFrame({
   userSubLabel,
   userAvatar,
   onLogout,
+  headerMenuLinks,
   onBack,
   showBack,
   onHelp,
@@ -135,6 +138,16 @@ export default function GameFrame({
                 <div className="break-words text-sm font-medium text-gray-900">{userLabel}</div>
                 {userSubLabel && <div className="mt-0.5 break-words text-xs text-gray-500">{userSubLabel}</div>}
               </div>
+              {headerMenuLinks?.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="block px-4 py-2.5 text-left text-sm font-medium text-sky-700 hover:bg-sky-50"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {link.label}
+                </a>
+              ))}
               <button
                 type="button"
                 onClick={async () => { setMenuOpen(false); await onLogout(); }}

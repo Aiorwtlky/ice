@@ -219,13 +219,15 @@ const HanoiGame = forwardRef<
       ? 'h-[0.45rem] min-h-[7px] sm:h-5 lg:h-9'
       : n >= 7
         ? 'h-[0.52rem] min-h-[8px] sm:h-6 lg:h-10'
-        : n >= 5
-          ? 'h-[0.62rem] min-h-[10px] sm:h-7 lg:h-12'
-          : n === 4
-            ? 'h-5 sm:h-8 lg:h-12'
-            : 'h-6 sm:h-9 lg:h-12';
+        : n === 6
+          ? 'h-[0.55rem] min-h-[9px] sm:h-6 lg:h-11'
+          : n >= 5
+            ? 'h-[0.62rem] min-h-[10px] sm:h-7 lg:h-12'
+            : n === 4
+              ? 'h-5 sm:h-8 lg:h-12'
+              : 'h-6 sm:h-9 lg:h-12';
   const discGapClass =
-    n >= 9 ? 'gap-px sm:gap-0.5 lg:gap-1' : n >= 5 ? 'gap-px sm:gap-1 lg:gap-2' : 'gap-1 sm:gap-1.5 lg:gap-2';
+    n >= 9 ? 'gap-px sm:gap-0.5 lg:gap-1' : n >= 6 ? 'gap-px sm:gap-1 lg:gap-1.5' : n >= 5 ? 'gap-px sm:gap-1 lg:gap-2' : 'gap-1 sm:gap-1.5 lg:gap-2';
 
   const rulesCardInner = (
     <>
@@ -514,13 +516,25 @@ const HanoiGame = forwardRef<
 
       {done && (
         <div className="absolute inset-0 z-[50] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl text-gray-900">
             <div className="text-2xl font-extrabold text-amber-600">過關！</div>
             <div className="mt-2 text-sm text-gray-700">你的步數：<span className="font-bold">{steps}</span></div>
             <div className="text-sm text-gray-700">最佳步數：<span className="font-bold">{optimalSteps(n)}</span></div>
             <div className="mt-6 flex gap-2">
-              <button type="button" onClick={reset} className="flex-1 rounded-xl border-2 border-gray-200 bg-gray-50 py-2.5 text-sm font-bold">再玩一次</button>
-              <button type="button" onClick={onExit} className="flex-1 rounded-xl bg-amber-500 py-2.5 text-sm font-bold text-white">返回</button>
+              <button
+                type="button"
+                onClick={reset}
+                className="flex-1 rounded-xl bg-slate-700 py-2.5 text-sm font-bold text-white shadow hover:bg-slate-800"
+              >
+                再玩一次
+              </button>
+              <button
+                type="button"
+                onClick={onExit}
+                className="flex-1 rounded-xl bg-amber-500 py-2.5 text-sm font-bold text-white shadow hover:bg-amber-600"
+              >
+                返回
+              </button>
             </div>
           </div>
         </div>
@@ -640,6 +654,8 @@ function MonsterGobblerGame({
   const [foods, setFoods] = useState<string[]>([]);
   const [mode, setMode] = useState<Mode>('QUEUE');
   const [toast, setToast] = useState<string | null>(null);
+  /** 切換模式後大字提示（1.5s） */
+  const [modeFlash, setModeFlash] = useState<Mode | null>(null);
   const [shake, setShake] = useState<'none' | 'poop' | 'vomit'>('none');
   const [lastOut, setLastOut] = useState<{ kind: 'poop' | 'vomit'; food: string; id: number } | null>(null);
   const outIdRef = useRef(1);
@@ -649,6 +665,12 @@ function MonsterGobblerGame({
     const id = setTimeout(() => setToast(null), 1400);
     return () => clearTimeout(id);
   }, [toast]);
+
+  useEffect(() => {
+    if (!modeFlash) return;
+    const id = setTimeout(() => setModeFlash(null), 1500);
+    return () => clearTimeout(id);
+  }, [modeFlash]);
 
   useEffect(() => {
     if (shake === 'none') return;
@@ -664,8 +686,8 @@ function MonsterGobblerGame({
   const toggleMode = () => {
     const next: Mode = mode === 'QUEUE' ? 'STACK' : 'QUEUE';
     setMode(next);
+    setModeFlash(next);
     sendLog('MODE', { payload: { mode: next, size: foods.length } });
-    setToast(next === 'QUEUE' ? '切換：腸胃順暢（先進先出）' : '切換：反芻模式（後進先出）');
   };
 
   const act = () => {
@@ -693,7 +715,7 @@ function MonsterGobblerGame({
   const actionLabel = mode === 'QUEUE' ? '噗噗拉出來！' : '嘔嘔吐出來！';
 
   return (
-    <div className="relative h-full min-h-0 bg-gradient-to-b from-[#FDFBF7] to-white p-3 sm:p-5">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-b from-[#FDFBF7] to-white p-3 sm:p-5">
       <style jsx>{`
         @keyframes shakePoop {
           0% { transform: translate(0, 0) rotate(0deg); }
@@ -720,17 +742,17 @@ function MonsterGobblerGame({
         }
       `}</style>
 
-      <div className="mx-auto flex h-full min-h-0 max-w-5xl flex-col gap-4 lg:flex-row">
-        {/* 左：怪獸 */}
-        <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center">
+      <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-4 lg:flex-row lg:items-stretch">
+        {/* 左：怪獸（肚子 flex-1 盡量用到可視區高度，滿了才內捲） */}
+        <div className="relative flex min-h-0 flex-1 flex-col">
           <div
-            className="relative w-full max-w-[520px] rounded-[2.25rem] border border-gray-200 bg-white/90 p-4 shadow-lg backdrop-blur-sm"
+            className="relative flex h-full min-h-0 w-full max-w-[520px] flex-1 flex-col overflow-hidden rounded-[2.25rem] border border-gray-200 bg-white/90 p-4 shadow-lg backdrop-blur-sm sm:mx-auto lg:mx-0 lg:max-w-none"
             style={{
               animation:
                 shake === 'poop' ? 'shakePoop 0.4s ease-in-out' : shake === 'vomit' ? 'shakeVomit 0.4s ease-in-out' : undefined,
             }}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex shrink-0 items-center justify-between">
               <div className="text-sm font-extrabold text-gray-900">怪獸大胃王</div>
               <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">
                 肚子：{foods.length}
@@ -738,7 +760,7 @@ function MonsterGobblerGame({
             </div>
 
             {/* 頭/嘴 */}
-            <div className="mt-3 flex items-center justify-center">
+            <div className="mt-3 flex shrink-0 items-center justify-center">
               <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg">
                 <div className="absolute -left-2 top-8 h-5 w-5 rounded-full bg-white/90" />
                 <div className="absolute -right-2 top-8 h-5 w-5 rounded-full bg-white/90" />
@@ -746,14 +768,14 @@ function MonsterGobblerGame({
               </div>
             </div>
 
-            {/* 透明肚子 */}
-            <div className="mt-4 rounded-3xl border-2 border-emerald-200 bg-emerald-50/50 p-4">
-              <div className="text-xs font-bold text-emerald-900/80">透明肚子（食物進來會排隊）</div>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-emerald-900/70">
+            {/* 透明肚子：flex-1 吃滿外卡剩餘高度 */}
+            <div className="mt-4 flex min-h-0 flex-1 flex-col rounded-3xl border-2 border-emerald-200 bg-emerald-50/50 p-3 sm:p-4">
+              <div className="shrink-0 text-xs font-bold text-emerald-900/80">透明肚子（食物進來會排隊）</div>
+              <div className="mt-2 flex shrink-0 items-center justify-between text-[11px] text-emerald-900/70">
                 <span className="font-bold">新吃的在上面</span>
                 <span className="font-bold">先吃的在下面</span>
               </div>
-              <div className="mt-2 max-h-[min(46vh,420px)] overflow-y-auto rounded-2xl border border-emerald-200 bg-white/60 p-3 sm:max-h-[min(52vh,520px)]">
+              <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-2xl border border-emerald-200 bg-white/70 p-3 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] min-h-[4.5rem] pb-1">
                 {foods.length === 0 ? (
                   <span className="text-sm text-gray-500">還沒吃到東西，快餵牠！</span>
                 ) : (
@@ -810,7 +832,7 @@ function MonsterGobblerGame({
         </div>
 
         {/* 右：操作面板 */}
-        <div className="w-full lg:w-[22rem]">
+        <div className="w-full shrink-0 lg:w-[22rem]">
           <div className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-lg backdrop-blur-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -874,6 +896,22 @@ function MonsterGobblerGame({
       {toast && (
         <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center">
           <div className="rounded-full bg-gray-900/90 px-4 py-2 text-sm font-semibold text-white shadow-lg">{toast}</div>
+        </div>
+      )}
+
+      {modeFlash && (
+        <div
+          className="pointer-events-none fixed inset-0 z-[90] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]"
+          aria-live="polite"
+        >
+          <div className="max-w-[min(96vw,28rem)] rounded-3xl border-2 border-white/80 bg-gradient-to-br from-emerald-600 to-teal-700 px-6 py-8 text-center shadow-2xl sm:px-10 sm:py-10">
+            <p className="text-balance text-3xl font-black tracking-tight text-white drop-shadow-md sm:text-4xl md:text-5xl">
+              {modeFlash === 'QUEUE' ? '佇列' : '堆疊'}
+            </p>
+            <p className="mt-2 text-balance text-2xl font-bold leading-snug text-white/95 drop-shadow sm:mt-3 sm:text-3xl md:text-4xl">
+              {modeFlash === 'QUEUE' ? '（先進先出）' : '（後進先出）'}
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -986,9 +1024,9 @@ function BubbleTeaMasterGame({
         }
       `}</style>
 
-      <div className="mx-auto flex h-full min-h-0 max-w-5xl flex-col gap-4 lg:flex-row">
+      <div className="mx-auto flex h-full min-h-0 max-w-5xl flex-col gap-4 lg:flex-row lg:items-start">
         {/* 左：杯子 */}
-        <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center">
           <div
             className="relative w-full max-w-[520px] rounded-[2.25rem] border border-gray-200 bg-white/90 p-4 shadow-lg backdrop-blur-sm"
             style={{
@@ -1008,26 +1046,28 @@ function BubbleTeaMasterGame({
             {/* 杯子本體 */}
             <div className="mt-4 flex items-start justify-center gap-4">
               {/* 增加左右「外側空間」讓吸管/湯匙不壓到杯內或標題 */}
-              <div className="relative w-[280px] sm:w-[320px]">
-                {/* 器具錨點：只在「杯子區」出現，不往上壓到標題列 */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[calc(100%+12px)]" aria-hidden>
+              <div className="relative isolate w-[280px] sm:w-[320px]">
+                {/* 器具錨點：偏上，避免與右側操作欄視覺重疊；長湯匙在上半部以掩飾堆疊頂層 */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[min(58vh,520px)]" aria-hidden>
                   {mode === 'QUEUE' ? (
-                    <div className="absolute left-2 top-0 h-full w-[14px] -rotate-6 rounded-full bg-gradient-to-b from-amber-200 to-amber-500 opacity-95 shadow-md">
+                    <div className="absolute left-2 top-2 h-[min(78%,300px)] w-[14px] -rotate-6 rounded-full bg-gradient-to-b from-amber-200 to-amber-500 opacity-95 shadow-md">
                       <div className="absolute -left-1 top-6 h-7 w-7 rounded-full bg-amber-200/80 blur-[10px]" />
                       <div className="absolute bottom-10 left-1/2 h-7 w-7 -translate-x-1/2 rounded-full bg-amber-300/60 blur-lg" />
                       <div className="absolute bottom-3 left-1/2 h-5 w-8 -translate-x-1/2 rounded-full bg-amber-400/80 shadow-inner" />
                     </div>
                   ) : (
-                    <div className="absolute right-2 top-0 h-full w-[10px] rotate-[14deg] rounded-full bg-gradient-to-b from-gray-200 to-gray-300 shadow-md">
-                      <div className="absolute -right-2 top-8 h-7 w-7 rounded-full bg-gray-200/80 blur-[10px]" />
-                      <div className="absolute bottom-[-8px] left-1/2 h-12 w-12 -translate-x-1/2 rounded-full bg-gray-200 shadow-inner" />
-                      <div className="absolute bottom-[2px] left-1/2 h-8 w-8 -translate-x-1/2 rounded-full bg-white/70 shadow-sm" />
+                    <div className="absolute right-1 top-3 h-[min(46%,240px)] min-h-[120px] max-h-[260px] w-[12px] rotate-[12deg]">
+                      <div className="relative h-full w-[10px] rounded-full bg-gradient-to-b from-gray-100 to-gray-400 shadow-md">
+                        <div className="absolute -right-2 top-5 h-7 w-7 rounded-full bg-gray-200/80 blur-[10px]" />
+                        <div className="absolute bottom-0 left-1/2 h-11 w-11 -translate-x-1/2 translate-y-1/4 rounded-full bg-gray-200 shadow-inner" />
+                        <div className="absolute bottom-1 left-1/2 h-7 w-7 -translate-x-1/2 rounded-full bg-white/75 shadow-sm" />
+                      </div>
                     </div>
                   )}
                 </div>
 
                 {/* 透明杯：高度改成吃滿畫面，配料區能長就長 */}
-                <div className="relative mx-auto h-[min(58vh,520px)] w-[260px] sm:w-[280px] overflow-hidden rounded-b-[2.5rem] rounded-t-[1.5rem] border-2 border-sky-200 bg-sky-50/40 shadow-inner">
+                <div className="relative z-0 mx-auto h-[min(52vh,480px)] w-[260px] sm:h-[min(54vh,500px)] sm:w-[280px] overflow-hidden rounded-b-[2.5rem] rounded-t-[1.5rem] border-2 border-sky-200 bg-sky-50/40 shadow-inner">
                   {/* 杯口 */}
                   <div className="absolute inset-x-0 top-0 h-8 bg-white/40" />
                   {/* 飲料底色 */}
@@ -1038,7 +1078,7 @@ function BubbleTeaMasterGame({
                   {/* 真的塞滿才在杯內捲動；平常優先用掉上下空間 */}
                   <div
                     ref={listRef}
-                    className={`absolute inset-x-0 bottom-3 top-12 flex items-center gap-1.5 overflow-y-auto px-4 pr-2 [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-sky-100/70 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-sky-300/80 hover:[&::-webkit-scrollbar-thumb]:bg-sky-400 ${
+                    className={`absolute inset-x-0 bottom-3 top-14 z-[1] flex items-center gap-1.5 overflow-y-auto px-4 pr-2 [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-sky-100/70 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-sky-300/80 hover:[&::-webkit-scrollbar-thumb]:bg-sky-400 ${
                       toppings.length === 0 ? 'justify-center' : 'flex-col-reverse justify-start'
                     }`}
                   >
@@ -1101,7 +1141,7 @@ function BubbleTeaMasterGame({
         </div>
 
         {/* 右：操作面板 */}
-        <div className="w-full lg:w-[22rem]">
+        <div className="w-full min-w-0 shrink-0 lg:w-[22rem]">
           <div className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-lg backdrop-blur-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1377,9 +1417,9 @@ function MagicPancakeTowerGame({
 
   return (
     <div className="relative h-full min-h-0 bg-gradient-to-b from-[#FDFBF7] to-white p-3 sm:p-5">
-      <div className="mx-auto flex h-full min-h-0 max-w-5xl flex-col gap-4 lg:flex-row">
+      <div className="mx-auto flex h-full min-h-0 max-w-5xl flex-col gap-4 lg:flex-row lg:items-start">
         {/* 左：主要遊戲 */}
-        <div className="min-h-0 flex-1 rounded-3xl border border-gray-200 bg-white/90 p-4 shadow-lg backdrop-blur-sm">
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden rounded-3xl border border-gray-200 bg-white/90 p-4 shadow-lg backdrop-blur-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate text-sm font-extrabold text-gray-900">魔法鬆餅塔（Stack / LIFO）</div>
@@ -1436,9 +1476,9 @@ function MagicPancakeTowerGame({
             )}
           </div>
 
-          <div className="mt-4 grid min-h-0 gap-4 lg:grid-cols-2">
+          <div className="mt-4 grid min-h-0 grid-cols-1 gap-4 md:grid-cols-2">
             {/* 主盤 */}
-            <div className="min-h-0 rounded-2xl border border-gray-200 bg-gray-50 p-3">
+            <div className="min-h-0 min-w-0 rounded-2xl border border-gray-200 bg-gray-50 p-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-extrabold text-gray-900">主盤（Stack）</div>
                 <div className="text-xs font-bold text-gray-600">數量：{main.length}</div>
@@ -1470,16 +1510,16 @@ function MagicPancakeTowerGame({
                           }`}
                           title={isTop ? '點我：pop' : '只能拿頂部（點中間會倒塔）'}
                         >
-                          <div className="relative flex items-center justify-between">
-                            {/* 鬆餅外殼 */}
-                            <div className={`absolute inset-x-0 -z-10 h-full rounded-[999px] bg-gradient-to-b ${meta.crust}`} />
-                            <div className="pointer-events-none absolute inset-0 rounded-[999px] border border-black/5" />
+                          <div className="relative isolate flex items-center justify-between">
+                            {/* 鬆餅外殼（避免 -z 穿透到鄰欄造成重疊） */}
+                            <div className={`absolute inset-x-0 top-0 bottom-0 z-0 rounded-[999px] bg-gradient-to-b ${meta.crust}`} />
+                            <div className="pointer-events-none absolute inset-0 z-[1] rounded-[999px] border border-black/5" />
                             {/* 糖霜 */}
-                            <div className={`pointer-events-none absolute left-3 right-3 top-1.5 h-5 rounded-[999px] bg-gradient-to-b ${meta.syrup} opacity-90`} />
+                            <div className={`pointer-events-none absolute left-3 right-3 top-1.5 z-[1] h-5 rounded-[999px] bg-gradient-to-b ${meta.syrup} opacity-90`} />
                             {/* 光澤 */}
-                            <div className="pointer-events-none absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.65),transparent_45%)] opacity-70" />
+                            <div className="pointer-events-none absolute inset-0 z-[1] rounded-[999px] bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.65),transparent_45%)] opacity-70" />
 
-                            <div className="relative z-10 flex w-full items-center justify-between gap-2">
+                            <div className="relative z-[2] flex w-full items-center justify-between gap-2">
                               <div className="min-w-0">
                                 <div className={`truncate text-base font-extrabold text-gray-900 ${meta.accent}`}>
                                   {meta.emoji} {meta.name}
@@ -1499,7 +1539,7 @@ function MagicPancakeTowerGame({
             </div>
 
             {/* 備用盤（Level2） */}
-            <div className="min-h-0 rounded-2xl border border-gray-200 bg-gray-50 p-3">
+            <div className="min-h-0 min-w-0 rounded-2xl border border-gray-200 bg-gray-50 p-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-extrabold text-gray-900">備用盤（Level 2）</div>
                 <div className="text-xs font-bold text-gray-600">數量：{spare.length}</div>
@@ -1546,7 +1586,7 @@ function MagicPancakeTowerGame({
         </div>
 
         {/* 右：操作區（只保留重點） */}
-        <div className="w-full lg:w-[22rem]">
+        <div className="w-full min-w-0 shrink-0 lg:w-[22rem]">
           <div className="rounded-3xl border border-gray-200 bg-white/90 p-4 shadow-lg backdrop-blur-sm">
             <div className="text-sm font-extrabold text-gray-900">操作</div>
             <div className="mt-2 rounded-2xl border border-gray-200 bg-white p-3">

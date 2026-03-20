@@ -12,7 +12,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const c = await prisma.classCompetition.findUnique({
     where: { id },
-    select: { id: true, classGroupId: true },
+    select: { id: true, classGroupId: true, hiddenFromStudents: true },
   });
   if (!c) return NextResponse.json({ error: '找不到' }, { status: 404 });
 
@@ -21,6 +21,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   if (auth.role === 'STUDENT') {
     if (!assertStudentInClass(auth, c.classGroupId)) {
       return NextResponse.json({ error: '無權限' }, { status: 403 });
+    }
+    if (c.hiddenFromStudents) {
+      return NextResponse.json({ error: '找不到' }, { status: 404 });
     }
   } else if (!canManageClass(auth, c.classGroupId, teacherGroupIds)) {
     return NextResponse.json({ error: '無權限' }, { status: 403 });

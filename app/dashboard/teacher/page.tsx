@@ -241,6 +241,16 @@ export default function TeacherDashboard() {
                   <p className="text-sm font-medium text-gray-900">{user.account}</p>
                   <p className="text-xs text-gray-500">{teacherClasses.find((c) => c.id === classId)?.name ?? '—'}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    router.push('/dashboard/teacher/announcements');
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm font-medium text-sky-800 hover:bg-sky-50"
+                >
+                  📢 班級公告
+                </button>
                 <button type="button" onClick={handleLogout} className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50">登出</button>
               </div>
             )}
@@ -295,7 +305,7 @@ export default function TeacherDashboard() {
             </div>
           </div>
 
-          <div className="flex min-h-0 min-h-[50vh] flex-1 flex-col rounded-2xl border border-gray-200/60 bg-white/90 p-6 shadow-lg backdrop-blur-sm lg:col-span-2 lg:min-h-0">
+          <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-gray-200/60 bg-white/90 p-6 shadow-lg backdrop-blur-sm lg:col-span-2 lg:min-h-0">
             <div className="mb-4 flex shrink-0 flex-wrap gap-2">
               {(['control', 'students', 'logs'] as Tab[]).map((t) => (
                 <button key={t} type="button" onClick={() => setTab(t)} className={`flex items-center gap-1 rounded-lg px-4 py-2 text-sm ${tab === t ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
@@ -481,11 +491,11 @@ export default function TeacherDashboard() {
             )}
 
             {tab === 'students' && (
-              <>
-                <h2 className="mb-4 text-lg font-bold text-gray-900">班級成員管理</h2>
-                <p className="mb-3 text-sm text-gray-500">可搜尋、排序、依性別/年級篩選。清單固定高度，超出以內部捲動顯示。</p>
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <h2 className="mb-4 shrink-0 text-lg font-bold text-gray-900">班級成員管理</h2>
+                <p className="mb-3 shrink-0 text-sm text-gray-500">可搜尋、排序、依性別/年級篩選。清單固定高度，超出以內部捲動顯示。</p>
 
-                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50/50 p-3">
+                <div className="mb-4 flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50/50 p-3">
                   <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-2 py-1.5">
                     <Search className="h-4 w-4 text-gray-400" />
                     <input value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} placeholder="搜尋帳號（如 ST-01）" className="w-44 bg-transparent text-sm outline-none" />
@@ -496,7 +506,7 @@ export default function TeacherDashboard() {
                   <div className="ml-auto text-sm text-gray-600">本班學員：{students.length}</div>
                 </div>
 
-                <div className="mb-4 grid gap-2 rounded-lg border border-gray-200 bg-white p-3 md:grid-cols-2">
+                <div className="mb-4 grid shrink-0 gap-2 rounded-lg border border-gray-200 bg-white p-3 md:grid-cols-2">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="text-sm font-medium text-gray-700">性別</span>
                     {(['男生', '女生'] as const).map((g) => (
@@ -516,7 +526,7 @@ export default function TeacherDashboard() {
                     ))}
                   </div>
                 </div>
-                <div className="mb-6">
+                <div className="mb-4 shrink-0">
                   <button type="button" onClick={() => { setAddModalOpen(true); loadNextStudent(); }} className="rounded-lg bg-amber-500 px-4 py-2 text-sm text-white hover:bg-amber-600">新增成員</button>
                 </div>
                 {addModalOpen && (
@@ -548,10 +558,13 @@ export default function TeacherDashboard() {
                     </div>
                   </div>
                 )}
-                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white">
-                  <div className="max-h-[420px] overflow-y-auto">
+                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-inner">
+                  <div
+                    className="h-full max-h-[min(420px,calc(100vh-22rem))] min-h-[200px] overflow-y-auto overscroll-y-contain scroll-smooth [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] [touch-action:pan-y] lg:max-h-[min(52vh,520px)] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300"
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db #f9fafb' }}
+                  >
                     <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-gray-50">
+                      <thead className="sticky top-0 z-10 bg-gray-50 shadow-[0_1px_0_0_rgb(229_231_235)]">
                         <tr className="border-b text-left">
                           <th className="p-3">帳號</th>
                           <th className="p-3">性別</th>
@@ -586,7 +599,7 @@ export default function TeacherDashboard() {
                     </table>
                   </div>
                 </div>
-              </>
+              </div>
             )}
 
             {tab === 'logs' && (
@@ -652,7 +665,7 @@ export default function TeacherDashboard() {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white">
-                  <div className="max-h-[420px] overflow-y-auto">
+                  <div className="max-h-[420px] overflow-y-auto scroll-smooth overscroll-y-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]">
                     <table className="w-full text-sm">
                       <thead className="sticky top-0 bg-gray-50">
                         <tr className="border-b text-left">

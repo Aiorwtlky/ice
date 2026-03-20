@@ -27,6 +27,7 @@ export async function GET(req: Request) {
     const list = await prisma.classCompetition.findMany({
       where: {
         classGroupId: cg,
+        hiddenFromStudents: false,
         status: { in: [CompetitionStatus.OPEN, CompetitionStatus.PAUSED, CompetitionStatus.ENDED] },
       },
       orderBy: { updatedAt: 'desc' },

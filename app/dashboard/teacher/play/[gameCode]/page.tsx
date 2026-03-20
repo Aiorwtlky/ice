@@ -5,6 +5,7 @@ import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import useSWR from 'swr';
 import GameFrame from '@/components/GameFrame';
 import { HanoiGame, Click1Game, Click2Game, MonsterGobblerGame, BubbleTeaMasterGame, MagicPancakeTowerGame } from '@/components/games/StudentGameViews';
+import { TeachingStack, TeachingQueue, TeachingHanoiRecursive, TeachingModuleShell } from '@/components/teaching';
 import FormActivityPlayer from '@/components/forms/FormActivityPlayer';
 import {
   ChevronLeft,
@@ -476,6 +477,57 @@ function TeacherPlayPageInner() {
           <MagicPancakeTowerGame sendLog={noopLog} />
         </GameFrame>
       )}
+      {gameCode === 'TEACH_STACK' && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          onHelpLog={noopLog}
+          helpTip="Push 放入、Pop 取出；紅箭頭為 Top"
+          mainLayout="fill"
+          headerSubtitle="教學模組 · Stack"
+        >
+          <TeachingModuleShell title="Stack（堆疊）教學" subtitle="後進先出（LIFO）">
+            <TeachingStack />
+          </TeachingModuleShell>
+        </GameFrame>
+      )}
+      {gameCode === 'TEACH_QUEUE' && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          onHelpLog={noopLog}
+          helpTip="Enqueue 從右進、Dequeue 從左出"
+          mainLayout="fill"
+          headerSubtitle="教學模組 · Queue"
+        >
+          <TeachingModuleShell title="Queue（佇列）教學" subtitle="先進先出（FIFO）">
+            <TeachingQueue />
+          </TeachingModuleShell>
+        </GameFrame>
+      )}
+      {gameCode === 'TEACH_HANOI_RECURSION' && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          onHelpLog={noopLog}
+          helpTip="播放／單步觀察盤子移動與右側 Call Stack"
+          mainLayout="fill"
+          headerSubtitle="教學模組 · 河內塔與遞迴"
+        >
+          <TeachingModuleShell title="河內塔（遞迴）教學" subtitle="盤子移動動畫 + 遞迴呼叫堆疊">
+            <TeachingHanoiRecursive />
+          </TeachingModuleShell>
+        </GameFrame>
+      )}
       {gameCode.startsWith('FORM_') && (
         <GameFrame
           headerTitle={headerTitle}
@@ -491,7 +543,7 @@ function TeacherPlayPageInner() {
           <FormActivityPlayer gameCode={gameCode} previewMode />
         </GameFrame>
       )}
-      {!['CLICK_1', 'CLICK_2', 'HANOI_3', 'HANOI_4', 'HANOI_5', 'HANOI_6', 'HANOI_7', 'HANOI_8', 'MONSTER_GOBBLER', 'BUBBLE_TEA_MASTER', 'MAGIC_PANCAKE_TOWER'].includes(gameCode) && !gameCode.startsWith('FORM_') && (
+      {!['CLICK_1', 'CLICK_2', 'HANOI_3', 'HANOI_4', 'HANOI_5', 'HANOI_6', 'HANOI_7', 'HANOI_8', 'MONSTER_GOBBLER', 'BUBBLE_TEA_MASTER', 'MAGIC_PANCAKE_TOWER', 'TEACH_STACK', 'TEACH_QUEUE', 'TEACH_HANOI_RECURSION'].includes(gameCode) && !gameCode.startsWith('FORM_') && (
         <GameFrame headerTitle={headerTitle} userLabel="老師示範" userAvatar={abbr} onBack={handleBack} onLogout={handleLogout}>
           <div className="flex h-full items-center justify-center p-6 text-gray-600">此活動尚無示範畫面</div>
         </GameFrame>

@@ -88,7 +88,9 @@ export async function POST(request: NextRequest) {
     const hasGameModule = typeof gameModuleId === 'string' && gameModuleId;
     // 寫入 LearningLog：有 gameModuleId 時一律寫；無 gameModuleId 時僅對返回/求助/登出寫入，讓老師歷程區能看到
     const shouldWriteLearningLog =
-      hasGameModule || ['BACK', 'HELP', 'LOGOUT'].includes(actionType);
+      hasGameModule ||
+      ['BACK', 'HELP', 'LOGOUT'].includes(actionType) ||
+      actionType.startsWith('ANNOUNCEMENT_');
     if (shouldWriteLearningLog) {
       await prisma.learningLog.create({
         data: {

@@ -60,6 +60,7 @@ export default function StudentCompetitionHubPage() {
   const rest = leaderboard.slice(3);
 
   const headerTitle = 'NovaInsight 資訊科普教育平台';
+  const headerMenuLinks = [{ label: '📢 班級公告', href: '/student/announcements' }];
   const helpMsg =
     '這是「班級競賽」頁面：左側為你的帳號、規則與進入比賽；右側為即時排行榜。\n\n求助在競賽進行中不提供解題提示，只會顯示操作說明。';
 
@@ -79,6 +80,7 @@ export default function StudentCompetitionHubPage() {
 
   return (
     <GameFrame
+      headerMenuLinks={headerMenuLinks}
       headerTitle={headerTitle}
       headerSubtitle={c?.name ? `班級競賽 · ${c.name}` : '班級競賽'}
       userLabel={user?.account}

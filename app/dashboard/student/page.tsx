@@ -110,6 +110,7 @@ export default function StudentDashboard() {
       userLabel={user.account}
       userSubLabel={classLabel}
       userAvatar={user.account.slice(0, 2).toUpperCase()}
+      headerMenuLinks={[{ label: '📢 班級公告', href: '/student/announcements' }]}
       onLogout={async () => {
         sendLog('LOGOUT');
         await fetch('/api/auth/logout', { method: 'POST' });

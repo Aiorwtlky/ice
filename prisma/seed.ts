@@ -20,7 +20,7 @@ async function main() {
   if (!term) throw new Error('seed: term 建立失敗');
   const termId = term.id;
 
-  // 2. 遊戲模組（點擊一、點擊二、河內塔）
+  // 2. 遊戲模組（點擊一、點擊二）
   console.log('🎮 建立遊戲模組...');
   const codes = [
     { code: 'CLICK_1', name: '點擊一', description: '單擊測試遊戲模組' },
@@ -40,7 +40,7 @@ async function main() {
     where: { termId: term.id, code: 'CLICK_1' },
   });
   if (!click1Module) throw new Error('CLICK_1 模組未找到');
-  console.log('✅ 遊戲模組就緒（點擊一、點擊二、河內塔）');
+  console.log('✅ 遊戲模組就緒（點擊一、點擊二）');
 
   // 3. Super Admin（已存在則更新密碼）
   console.log('👤 建立 Super Admin...');

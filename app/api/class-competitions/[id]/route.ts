@@ -26,6 +26,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     if (!assertStudentInClass(auth, c.classGroupId)) {
       return NextResponse.json({ error: '無權限' }, { status: 403 });
     }
+    if (c.hiddenFromStudents) {
+      return NextResponse.json({ error: '找不到' }, { status: 404 });
+    }
   } else if (!canManageClass(auth, c.classGroupId, teacherGroupIds)) {
     return NextResponse.json({ error: '無權限' }, { status: 403 });
   }
@@ -88,6 +91,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       endedAt: c.endedAt?.toISOString() ?? null,
       pauseStartedAt: c.pauseStartedAt?.toISOString() ?? null,
       totalPausedMs: c.totalPausedMs,
+      hiddenFromStudents: c.hiddenFromStudents,
     },
     serverNow: new Date(now).toISOString(),
     remainingTimeMs,
@@ -129,6 +133,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     updates.name = name;
   }
   if (rulesText !== undefined) updates.rulesText = rulesText;
+  if (body.hiddenFromStudents !== undefined) {
+    if (typeof body.hiddenFromStudents !== 'boolean') {
+      return NextResponse.json({ error: 'hiddenFromStudents 須為 true 或 false' }, { status: 400 });
+    }
+    updates.hiddenFromStudents = body.hiddenFromStudents;
+  }
 
   if (status) {
     const now = new Date();
@@ -179,7 +189,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     data: {
       competitionId: id,
       userId: auth.id,
-      action: 'COMPETITION_STATUS',
+      action: 'COMPETITION_PATCH',
       payload: {
         patch: body,
         result: {
@@ -188,6 +198,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           pauseStartedAt: updated.pauseStartedAt,
           totalPausedMs: updated.totalPausedMs,
           endedAt: updated.endedAt,
+          hiddenFromStudents: updated.hiddenFromStudents,
         },
       } as object,
     },

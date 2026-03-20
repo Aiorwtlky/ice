@@ -12,6 +12,8 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const COMP_HELP =
   '【班級競賽模式】\n\n此模式不提供解題提示或盤面攻略，請依老師說明與規則自行完成。\n\n操作：點有盤子的柱子拿起最上方一個，再點目標柱放下；大盤不可壓小盤。目標為將全部盤子移到右柱。\n\n如需協助裝置操作，請舉手請老師協助。';
 
+const HEADER_MENU_LINKS = [{ label: '📢 班級公告', href: '/student/announcements' }];
+
 export default function StudentCompetitionPlayPage() {
   const params = useParams();
   const router = useRouter();
@@ -108,6 +110,7 @@ export default function StudentCompetitionPlayPage() {
   if (!c || !detail.canPlay) {
     return (
       <GameFrame
+        headerMenuLinks={HEADER_MENU_LINKS}
         headerTitle="班級競賽"
         userLabel={user.account}
         userAvatar={user.account.slice(0, 2).toUpperCase()}
@@ -134,6 +137,7 @@ export default function StudentCompetitionPlayPage() {
 
   return (
     <GameFrame
+      headerMenuLinks={HEADER_MENU_LINKS}
       headerTitle="NovaInsight 資訊科普教育平台"
       headerSubtitle={`競賽 · ${c.name}`}
       userLabel={user.account}
