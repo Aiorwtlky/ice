@@ -20,16 +20,30 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ account, password }),
+        credentials: 'same-origin',
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data: { error?: string; success?: boolean } = {};
+      if (raw) {
+        try {
+          data = JSON.parse(raw) as { error?: string; success?: boolean };
+        } catch {
+          setError(
+            res.ok
+              ? '伺服器回應異常，請重新整理頁面後再試'
+              : `無法解析伺服器回應（${res.status}），請稍後再試`
+          );
+          return;
+        }
+      }
       if (!res.ok) {
-        setError(data.error || '登入失敗');
-        setLoading(false);
+        setError(data.error || `登入失敗（${res.status}）`);
         return;
       }
       router.push('/dashboard');
     } catch {
-      setError('網路錯誤，請稍後再試');
+      setError('無法連線到伺服器，請確認網路或稍後再試');
+    } finally {
       setLoading(false);
     }
   };

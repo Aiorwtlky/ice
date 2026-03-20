@@ -245,11 +245,12 @@ const HanoiGame = forwardRef<
           <div className="text-xl font-extrabold tabular-nums text-gray-900 sm:text-2xl">{optimal}</div>
         </div>
       </div>
-      {competitionMode && (moveLimit != null || timeRemainingSec != null) && (
+      {competitionMode &&
+        (timeRemainingSec != null || (moveLimit != null && moveLimit !== optimal)) && (
         <div className="mt-3 grid grid-cols-2 gap-2">
-          {moveLimit != null ? (
+          {moveLimit != null && moveLimit !== optimal ? (
             <div className="rounded-xl border border-violet-200/90 bg-violet-50/90 px-3 py-2">
-              <div className="text-[10px] font-bold text-violet-800 sm:text-xs">計次</div>
+              <div className="text-[10px] font-bold text-violet-800 sm:text-xs">計次上限</div>
               <div className="text-lg font-extrabold tabular-nums text-violet-950">{moveLimit}</div>
             </div>
           ) : null}
@@ -493,7 +494,11 @@ const HanoiGame = forwardRef<
           <div className="w-full max-w-sm rounded-2xl border border-white/20 bg-gray-900 p-6 text-center text-white shadow-xl">
             <div className="text-2xl font-extrabold text-violet-400">超過計次</div>
             <p className="mt-2 text-sm text-gray-300">
-              目前步數 {steps}，計次設定 {moveLimit}。請按「重來」再挑戰。
+              目前步數 {steps}
+              {moveLimit != null && moveLimit !== optimalSteps(n)
+                ? `，計次上限 ${moveLimit} 步`
+                : `，已超過最少步數（${optimalSteps(n)} 步）`}
+              。請按「重來」再挑戰。
             </p>
             <div className="mt-6 flex gap-2">
               <button type="button" onClick={reset} className="flex-1 rounded-xl border border-white/30 py-2.5 text-sm font-bold text-white">

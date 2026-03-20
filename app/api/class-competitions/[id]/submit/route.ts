@@ -56,10 +56,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
   }
 
-  if (c.mode === CompetitionMode.MOVE_LIMIT && c.moveLimit != null && steps > c.moveLimit) {
-    return NextResponse.json({ error: '超過計次設定' }, { status: 400 });
-  }
-
   const existing = await prisma.classCompetitionScore.findUnique({
     where: { competitionId_userId: { competitionId: id, userId: auth.id } },
   });

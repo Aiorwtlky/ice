@@ -353,7 +353,7 @@ model ClassCompetition {
   status         CompetitionStatus @default(DRAFT)
   discCount      Int // 3–10（河內塔）
   timeLimitSec   Int? // 限時模式：秒
-  moveLimit      Int? // 計次模式：比較／門檻用步數（以合法 DROP 步數為準）
+  moveLimit      Int? // 已廢止：計次模式不再設步數上限；保留欄位相容舊資料
   rulesText      String?           @db.Text
   openedAt       DateTime?
   endedAt        DateTime?

@@ -32,7 +32,6 @@ function DashboardCompetitionsPageInner() {
   const [mode, setMode] = useState<'TIME_LIMIT' | 'MOVE_LIMIT'>('TIME_LIMIT');
   const [discCount, setDiscCount] = useState(5);
   const [timeLimitSec, setTimeLimitSec] = useState(600);
-  const [moveLimit, setMoveLimit] = useState(127);
   const [rulesText, setRulesText] = useState('');
   const [creating, setCreating] = useState(false);
   const [logModalId, setLogModalId] = useState<string | null>(null);
@@ -87,17 +86,23 @@ function DashboardCompetitionsPageInner() {
     const res = await fetch('/api/class-competitions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({
         classGroupId: effectiveClassId,
         name: name.trim(),
         mode,
-        discCount,
-        timeLimitSec: mode === 'TIME_LIMIT' ? timeLimitSec : undefined,
-        moveLimit: mode === 'MOVE_LIMIT' ? moveLimit : undefined,
+        discCount: Number(discCount),
+        timeLimitSec: mode === 'TIME_LIMIT' ? Number(timeLimitSec) : undefined,
         rulesText: rulesText.trim() || undefined,
       }),
     });
-    const d = await res.json().catch(() => ({}));
+    const raw = await res.text();
+    let d: { error?: string } = {};
+    try {
+      if (raw) d = JSON.parse(raw) as { error?: string };
+    } catch {
+      d = {};
+    }
     setCreating(false);
     if (!res.ok) {
       alert((d as { error?: string }).error || '建立失敗');
@@ -199,7 +204,7 @@ function DashboardCompetitionsPageInner() {
                 className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
               >
                 <option value="TIME_LIMIT">限時（開放後計時，可暫停）</option>
-                <option value="MOVE_LIMIT">計次（以步數比較／門檻）</option>
+                <option value="MOVE_LIMIT">計次（比完成步數，無步數上限）</option>
               </select>
             </div>
             {mode === 'TIME_LIMIT' ? (
@@ -215,16 +220,9 @@ function DashboardCompetitionsPageInner() {
                 />
               </div>
             ) : (
-              <div>
-                <label className="text-xs font-bold text-gray-600">計次（步數）</label>
-                <input
-                  type="number"
-                  min={discCount}
-                  max={5000}
-                  value={moveLimit}
-                  onChange={(e) => setMoveLimit(Number(e.target.value))}
-                  className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                />
+              <div className="rounded-xl border border-violet-200/80 bg-violet-50/90 px-3 py-2.5 text-xs leading-relaxed text-violet-900">
+                <span className="font-bold">計次模式：</span>
+                依完成步數排名（步數愈少愈好），不設步數上限。
               </div>
             )}
             <div className="sm:col-span-2">
@@ -260,7 +258,9 @@ function DashboardCompetitionsPageInner() {
                   <div>
                     <p className="font-extrabold text-gray-900">{row.name}</p>
                     <p className="text-xs text-gray-500">
-                      河內塔 {row.discCount} 層 · {row.mode === 'TIME_LIMIT' ? `限時 ${row.timeLimitSec}s` : `計次 ${row.moveLimit} 步`} ·{' '}
+                      河內塔 {row.discCount} 層 ·{' '}
+                      {row.mode === 'TIME_LIMIT' ? `限時 ${row.timeLimitSec}s` : '計次（比步數）'}
+                      ·{' '}
                       <span className="font-semibold text-amber-800">{row.status}</span>
                     </p>
                     <p className="text-xs text-gray-400">

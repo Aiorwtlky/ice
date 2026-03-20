@@ -5,6 +5,15 @@ import { canManageClass, loadAuthTeacherGroups } from '@/app/api/class-competiti
 
 const prisma = new PrismaClient();
 
+function parsePositiveInt(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v)) return Math.round(v);
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = parseInt(v, 10);
+    if (!Number.isNaN(n)) return n;
+  }
+  return null;
+}
+
 export async function GET(req: Request) {
   const auth = await getAuthUser(prisma);
   if (!auth) return NextResponse.json({ error: '未授權' }, { status: 401 });
@@ -75,11 +84,29 @@ export async function POST(req: Request) {
 
   const classGroupId = typeof body.classGroupId === 'string' ? body.classGroupId : '';
   const name = typeof body.name === 'string' ? body.name.trim() : '';
-  const mode = body.mode as CompetitionMode;
-  const discCount = typeof body.discCount === 'number' ? body.discCount : NaN;
-  const timeLimitSec = typeof body.timeLimitSec === 'number' ? body.timeLimitSec : null;
-  const moveLimit = typeof body.moveLimit === 'number' ? body.moveLimit : null;
-  const rulesText = typeof body.rulesText === 'string' ? body.rulesText : null;
+  const modeStr = typeof body.mode === 'string' ? body.mode.trim() : '';
+  const mode =
+    modeStr === 'TIME_LIMIT'
+      ? CompetitionMode.TIME_LIMIT
+      : modeStr === 'MOVE_LIMIT'
+        ? CompetitionMode.MOVE_LIMIT
+        : null;
+
+  const discRaw = parsePositiveInt(body.discCount);
+  const discCount = discRaw ?? NaN;
+
+  const timeRaw =
+    body.timeLimitSec === undefined || body.timeLimitSec === null
+      ? null
+      : parsePositiveInt(body.timeLimitSec);
+  const timeLimitSec = timeRaw;
+
+  const rulesText =
+    typeof body.rulesText === 'string'
+      ? body.rulesText.trim() === ''
+        ? null
+        : body.rulesText.trim()
+      : null;
 
   if (!classGroupId || !name) {
     return NextResponse.json({ error: 'classGroupId 與 name 必填' }, { status: 400 });
@@ -87,52 +114,55 @@ export async function POST(req: Request) {
   if (!canManageClass(auth, classGroupId, teacherGroupIds)) {
     return NextResponse.json({ error: '無權限' }, { status: 403 });
   }
+  if (!mode) {
+    return NextResponse.json({ error: 'mode 須為 TIME_LIMIT（限時）或 MOVE_LIMIT（計次）' }, { status: 400 });
+  }
   if (discCount < 3 || discCount > 10 || !Number.isInteger(discCount)) {
     return NextResponse.json({ error: 'discCount 須為 3–10 的整數' }, { status: 400 });
-  }
-  if (mode !== CompetitionMode.TIME_LIMIT && mode !== CompetitionMode.MOVE_LIMIT) {
-    return NextResponse.json({ error: 'mode 須為 TIME_LIMIT（限時）或 MOVE_LIMIT（計次）' }, { status: 400 });
   }
   if (mode === CompetitionMode.TIME_LIMIT) {
     if (timeLimitSec == null || timeLimitSec < 30 || timeLimitSec > 86400) {
       return NextResponse.json({ error: '限時模式：timeLimitSec 須為 30–86400 秒' }, { status: 400 });
     }
-  } else {
-    if (moveLimit == null || moveLimit < discCount || moveLimit > 5000) {
-      return NextResponse.json({ error: '計次模式：步數設定須 >= 層數且在合理範圍內' }, { status: 400 });
-    }
   }
 
-  const created = await prisma.classCompetition.create({
-    data: {
-      classGroupId,
-      name,
-      kind: CompetitionKind.HANOI_TOWER,
-      mode,
-      status: CompetitionStatus.DRAFT,
-      discCount,
-      timeLimitSec: mode === CompetitionMode.TIME_LIMIT ? timeLimitSec : null,
-      moveLimit: mode === CompetitionMode.MOVE_LIMIT ? moveLimit : null,
-      rulesText,
-      createdById: auth.id,
-    },
-  });
-
-  await prisma.classCompetitionLog.create({
-    data: {
-      competitionId: created.id,
-      userId: auth.id,
-      action: 'COMPETITION_CREATE',
-      payload: {
-        name,
-        mode,
-        discCount,
-        timeLimitSec: created.timeLimitSec,
-        moveLimit: created.moveLimit,
+  try {
+    const created = await prisma.classCompetition.create({
+      data: {
         classGroupId,
-      } as object,
-    },
-  });
+        name,
+        kind: CompetitionKind.HANOI_TOWER,
+        mode,
+        status: CompetitionStatus.DRAFT,
+        discCount,
+        timeLimitSec: mode === CompetitionMode.TIME_LIMIT ? timeLimitSec : null,
+        // 計次模式：不設步數上限，僅以完成步數排名；欄位保留相容舊資料
+        moveLimit: null,
+        rulesText,
+        createdById: auth.id,
+      },
+    });
 
-  return NextResponse.json({ competition: created });
+    await prisma.classCompetitionLog.create({
+      data: {
+        competitionId: created.id,
+        userId: auth.id,
+        action: 'COMPETITION_CREATE',
+        payload: {
+          name,
+          mode,
+          discCount,
+          timeLimitSec: created.timeLimitSec,
+          moveLimit: created.moveLimit,
+          classGroupId,
+        } as object,
+      },
+    });
+
+    return NextResponse.json({ competition: created });
+  } catch (err) {
+    console.error('[class-competitions POST]', err);
+    const msg = err instanceof Error ? err.message : '資料庫寫入失敗';
+    return NextResponse.json({ error: `建立失敗：${msg}` }, { status: 500 });
+  }
 }

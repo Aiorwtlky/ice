@@ -153,7 +153,7 @@ export default function StudentCompetitionPlayPage() {
         competitionMode
         rainbowDiscs
         competitionHelpMessage={COMP_HELP}
-        moveLimit={c.mode === 'MOVE_LIMIT' ? c.moveLimit : null}
+        moveLimit={null}
         timeRemainingSec={remainingSec}
         onCompleted={onCompleted}
       />

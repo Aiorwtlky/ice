@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
-import { cookies } from 'next/headers';
 
 const prisma = new PrismaClient();
 
@@ -85,23 +84,21 @@ export async function POST(request: NextRequest) {
       .setExpirationTime('7d') // 7 天過期
       .sign(JWT_SECRET);
 
-    // 設定 HttpOnly Cookie
-    const cookieStore = await cookies();
-    cookieStore.set('auth-token', token, {
+    // 回傳使用者資訊（排除 passwordHash），並在同一個 Response 上設定 HttpOnly Cookie
+    const { passwordHash, ...userWithoutPassword } = user;
+
+    const response = NextResponse.json({
+      success: true,
+      user: userWithoutPassword,
+    });
+    response.cookies.set('auth-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 天
       path: '/',
     });
-
-    // 回傳使用者資訊（排除 passwordHash）
-    const { passwordHash, ...userWithoutPassword } = user;
-
-    return NextResponse.json({
-      success: true,
-      user: userWithoutPassword,
-    });
+    return response;
   } catch (error) {
     console.error('登入錯誤:', error);
     const msg = error instanceof Error ? error.message : '';

@@ -130,7 +130,9 @@ export default function StudentCompetitionHubPage() {
                 </li>
                 <li>
                   <span className="font-semibold text-gray-900">模式：</span>
-                  {c.mode === 'TIME_LIMIT' ? `限時（${c.timeLimitSec} 秒）` : `計次（${c.moveLimit} 步）`}
+                  {c.mode === 'TIME_LIMIT'
+                    ? `限時（${c.timeLimitSec} 秒）`
+                    : '計次（依完成步數排名，無步數上限）'}
                 </li>
                 <li>
                   <span className="font-semibold text-gray-900">狀態：</span>
