@@ -95,7 +95,11 @@ export default function StudentAnnouncementDetailPage() {
                     <Megaphone className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
-                    <h1 className="text-xl font-extrabold leading-snug text-gray-900">{ann.title}</h1>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h1 className="text-xl font-extrabold leading-snug text-gray-900">{ann.title}</h1>
+                      {ann.isPinned && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700">置頂</span>}
+                      {ann.isImportant && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">重要</span>}
+                    </div>
                     <div className="mt-2 space-y-1 text-xs text-gray-600">
                       <p>可閱讀起：{fmt(ann.visibleFrom)}（台北時間）</p>
                       {ann.visibleUntil && (
@@ -111,6 +115,16 @@ export default function StudentAnnouncementDetailPage() {
 
               <article className="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{ann.body}</div>
+                {ann.ctaLabel && ann.ctaUrl && (
+                  <a
+                    href={ann.ctaUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 inline-flex items-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700"
+                  >
+                    {ann.ctaLabel}
+                  </a>
+                )}
               </article>
 
               <p className="mt-4 text-center text-[11px] text-gray-400">

@@ -4,7 +4,7 @@ import { getSessionUser } from '@/lib/server-auth';
 
 const prisma = new PrismaClient();
 
-/** GET: 學生所屬班級、目前時段內可見的公告（不含全文過長時仍回傳 body 於列表—可改只回摘要） */
+/** GET: 學生所屬班級、目前時段內可見的公告列表（回傳摘要） */
 export async function GET() {
   const u = await getSessionUser();
   if (!u || u.role !== 'STUDENT' || !u.studentGroupId) {
@@ -18,11 +18,15 @@ export async function GET() {
       visibleFrom: { lte: now },
       OR: [{ visibleUntil: null }, { visibleUntil: { gte: now } }],
     },
-    orderBy: [{ visibleFrom: 'desc' }, { createdAt: 'desc' }],
+    orderBy: [{ isPinned: 'desc' }, { isImportant: 'desc' }, { visibleFrom: 'desc' }, { createdAt: 'desc' }],
     select: {
       id: true,
       title: true,
       body: true,
+      isPinned: true,
+      isImportant: true,
+      ctaLabel: true,
+      ctaUrl: true,
       visibleFrom: true,
       visibleUntil: true,
       createdAt: true,
@@ -38,7 +42,11 @@ export async function GET() {
     announcements: rows.map((r) => ({
       id: r.id,
       title: r.title,
-      body: r.body,
+      summary: r.body.length > 180 ? `${r.body.slice(0, 180)}...` : r.body,
+      isPinned: r.isPinned,
+      isImportant: r.isImportant,
+      ctaLabel: r.ctaLabel,
+      ctaUrl: r.ctaUrl,
       visibleFrom: r.visibleFrom.toISOString(),
       visibleUntil: r.visibleUntil?.toISOString() ?? null,
       createdAt: r.createdAt.toISOString(),

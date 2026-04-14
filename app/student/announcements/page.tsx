@@ -42,7 +42,11 @@ export default function StudentAnnouncementsPage() {
   const { data, error, isLoading } = useSWR<{ announcements: Array<{
     id: string;
     title: string;
-    body: string;
+    summary: string;
+    isPinned: boolean;
+    isImportant: boolean;
+    ctaLabel: string | null;
+    ctaUrl: string | null;
     visibleFrom: string;
     visibleUntil: string | null;
     createdAt: string;
@@ -134,13 +138,16 @@ export default function StudentAnnouncementsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-gray-900">{a.title}</span>
+                        {a.isPinned && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">置頂</span>}
+                        {a.isImportant && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">重要</span>}
                         {unread && (
                           <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
                             未讀
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 line-clamp-2 text-xs text-gray-600">{a.body.replace(/\n/g, ' ')}</p>
+                      <p className="mt-1 line-clamp-2 text-xs text-gray-600">{a.summary.replace(/\n/g, ' ')}</p>
+                      {a.ctaLabel && a.ctaUrl && <p className="mt-1 text-[11px] font-semibold text-sky-700">附連結：{a.ctaLabel}</p>}
                       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
                         <span>發布 {fmt(a.visibleFrom)}</span>
                         {a.visibleUntil && (

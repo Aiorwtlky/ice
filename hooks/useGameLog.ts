@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback } from 'react';
 
-export function useGameLog(gameModuleId: string | null, sessionId?: string | null) {
+export function useGameLog(gameModuleId: string | null, sessionId?: string | null, enabled = true) {
   const lastTimeRef = useRef<number>(0);
 
   useEffect(() => {
@@ -15,6 +15,7 @@ export function useGameLog(gameModuleId: string | null, sessionId?: string | nul
       action: string,
       opts?: { isCorrect?: boolean; timeDiffMs?: number; payload?: Record<string, unknown> }
     ) => {
+      if (!enabled) return;
       const now = Date.now();
       const base = lastTimeRef.current || now;
       const timeDiffMs = opts?.timeDiffMs ?? now - base;
@@ -32,11 +33,11 @@ export function useGameLog(gameModuleId: string | null, sessionId?: string | nul
         }),
       });
     },
-    [gameModuleId, sessionId]
+    [enabled, gameModuleId, sessionId]
   );
 
   useEffect(() => {
-    if (!gameModuleId) return;
+    if (!enabled || !gameModuleId) return;
     const onVisibility = () => {
       const action = document.visibilityState === 'hidden' ? 'TAB_LEAVE' : 'TAB_ENTER';
       fetch('/api/logs', {
@@ -47,10 +48,10 @@ export function useGameLog(gameModuleId: string | null, sessionId?: string | nul
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [gameModuleId, sessionId]);
+  }, [enabled, gameModuleId, sessionId]);
 
   useEffect(() => {
-    if (!gameModuleId) return;
+    if (!enabled || !gameModuleId) return;
     const id = setInterval(() => {
       fetch('/api/logs', {
         method: 'POST',
@@ -59,7 +60,7 @@ export function useGameLog(gameModuleId: string | null, sessionId?: string | nul
       });
     }, 30000);
     return () => clearInterval(id);
-  }, [gameModuleId, sessionId]);
+  }, [enabled, gameModuleId, sessionId]);
 
   return { sendLog };
 }

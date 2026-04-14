@@ -38,11 +38,23 @@ export async function GET() {
   const classes = await prisma.classGroup.findMany({
     where: { id: { in: allIds } },
     include: {
-      activeTerm: { select: { id: true, name: true } },
+      activeTerm: { select: { id: true, name: true, isActive: true } },
       teacher: { select: { id: true, account: true, name: true } },
       _count: { select: { students: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
-  return NextResponse.json({ classes });
+  return NextResponse.json({
+    classes: classes.map((c) => ({
+      ...c,
+      activeTerm:
+        teacher.role === 'ADMIN'
+          ? c.activeTerm
+            ? { id: c.activeTerm.id, name: c.activeTerm.name }
+            : null
+          : c.activeTerm?.isActive
+            ? { id: c.activeTerm.id, name: c.activeTerm.name }
+            : null,
+    })),
+  });
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import {
   CirclePlus,
+  Copy,
   FileQuestion,
   GripVertical,
   ListChecks,
@@ -50,6 +51,17 @@ export interface FormBuilderInitialData {
   allowEditAfterSubmit: boolean;
   allowViewAfterSubmit: boolean;
   questions: BuilderQuestion[];
+}
+
+interface LocalDraftPayload {
+  termId: string;
+  title: string;
+  description: string;
+  allowMultipleSubmissions: boolean;
+  allowEditAfterSubmit: boolean;
+  allowViewAfterSubmit: boolean;
+  questions: BuilderQuestion[];
+  savedAt: string;
 }
 
 function uid() {
@@ -122,6 +134,7 @@ export default function FormBuilder({
   );
   const { data: termsData } = useSWR<{ terms: TermItem[] }>('/api/activity-categories', fetcher);
   const base = normalizeInitial(initialData);
+  const draftKey = `form-builder-draft:${submitMethod}:${submitUrl}`;
 
   const [termId, setTermId] = useState(base.termId);
   const [title, setTitle] = useState(base.title);
@@ -132,6 +145,10 @@ export default function FormBuilder({
   const [questions, setQuestions] = useState<BuilderQuestion[]>(base.questions);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<string | null>(null);
+  const [pendingDraft, setPendingDraft] = useState<LocalDraftPayload | null>(null);
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
 
   const user = meData?.user;
   const roleOk = user && (user.role === 'TEACHER' || user.role === 'ADMIN');
@@ -156,7 +173,7 @@ export default function FormBuilder({
         options: question.options.map((option) => ({
           id: option.id,
           label: option.label,
-          value: option.value || option.label,
+          value: option.label || option.value,
         })),
       })),
     }),
@@ -171,13 +188,131 @@ export default function FormBuilder({
     ]
   );
 
-  if (!authLoading && !roleOk) {
-    router.replace('/dashboard');
-    return null;
-  }
+  const blocked = !authLoading && !roleOk;
 
   const terms = termsData?.terms ?? [];
   const completedQuestions = questions.filter((question) => question.title.trim()).length;
+  const draftSavedText = useMemo(() => {
+    if (!lastDraftSavedAt) return '尚未暫存';
+    const d = new Date(lastDraftSavedAt);
+    return `已暫存於 ${d.toLocaleTimeString('zh-TW', { hour12: false })}`;
+  }, [lastDraftSavedAt]);
+
+  const applyDraft = (draft: LocalDraftPayload) => {
+    setTermId(draft.termId ?? '');
+    setTitle(draft.title ?? '');
+    setDescription(draft.description ?? '');
+    setAllowMultipleSubmissions(Boolean(draft.allowMultipleSubmissions));
+    setAllowEditAfterSubmit(Boolean(draft.allowEditAfterSubmit));
+    setAllowViewAfterSubmit(
+      draft.allowViewAfterSubmit === undefined ? true : Boolean(draft.allowViewAfterSubmit)
+    );
+    setQuestions(
+      Array.isArray(draft.questions) && draft.questions.length > 0
+        ? draft.questions.map((question) => ({
+            ...question,
+            localId: question.localId || uid(),
+            options: (question.options ?? []).map((option) => ({
+              ...option,
+              localId: option.localId || uid(),
+            })),
+          }))
+        : [createQuestion('SINGLE_CHOICE')]
+    );
+    setLastDraftSavedAt(draft.savedAt || new Date().toISOString());
+    setHasPendingChanges(false);
+  };
+
+  const persistLocalDraft = useCallback(
+    (override?: LocalDraftPayload) => {
+      if (readonly || typeof window === 'undefined') return;
+      const nowIso = new Date().toISOString();
+      const draft: LocalDraftPayload = override ?? {
+        termId,
+        title,
+        description,
+        allowMultipleSubmissions,
+        allowEditAfterSubmit,
+        allowViewAfterSubmit,
+        questions,
+        savedAt: nowIso,
+      };
+      if (!override) draft.savedAt = nowIso;
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+      setLastDraftSavedAt(draft.savedAt);
+      setHasPendingChanges(false);
+    },
+    [
+      allowEditAfterSubmit,
+      allowMultipleSubmissions,
+      allowViewAfterSubmit,
+      description,
+      draftKey,
+      questions,
+      readonly,
+      termId,
+      title,
+    ]
+  );
+
+  useEffect(() => {
+    if (!blocked) return;
+    router.replace('/dashboard');
+  }, [blocked, router]);
+
+  useEffect(() => {
+    if (readonly || typeof window === 'undefined') return;
+    const raw = localStorage.getItem(draftKey);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as LocalDraftPayload;
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.questions)) return;
+      const hasContent =
+        Boolean(parsed.title?.trim()) ||
+        Boolean(parsed.description?.trim()) ||
+        parsed.questions.some((q) => q.title?.trim());
+      if (!hasContent) return;
+      window.setTimeout(() => setPendingDraft(parsed), 0);
+    } catch {
+      // Ignore invalid local draft payload.
+    }
+  }, [draftKey, readonly]);
+
+  useEffect(() => {
+    if (readonly || typeof window === 'undefined') return;
+    const markDirtyTimer = window.setTimeout(() => {
+      setHasPendingChanges(true);
+    }, 0);
+    const timer = window.setTimeout(() => {
+      persistLocalDraft();
+    }, 1200);
+    return () => {
+      window.clearTimeout(markDirtyTimer);
+      window.clearTimeout(timer);
+    };
+  }, [
+    allowEditAfterSubmit,
+    allowMultipleSubmissions,
+    allowViewAfterSubmit,
+    description,
+    draftKey,
+    persistLocalDraft,
+    questions,
+    readonly,
+    termId,
+    title,
+  ]);
+
+  useEffect(() => {
+    if (readonly || typeof window === 'undefined') return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasPendingChanges) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [hasPendingChanges, readonly]);
 
   const updateQuestion = (localId: string, patch: Partial<BuilderQuestion>) => {
     setQuestions((prev) =>
@@ -200,6 +335,7 @@ export default function FormBuilder({
     if (readonly) return;
     setSaving(true);
     setMessage('');
+    setMessageType('success');
     const res = await fetch(submitUrl, {
       method: submitMethod,
       headers: { 'Content-Type': 'application/json' },
@@ -208,12 +344,25 @@ export default function FormBuilder({
     const data = await res.json().catch(() => ({}));
     setSaving(false);
     if (!res.ok) {
+      setMessageType('error');
       setMessage(data.error || '儲存失敗');
       return;
     }
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(draftKey);
+    }
+    setPendingDraft(null);
+    setHasPendingChanges(false);
+    setLastDraftSavedAt(null);
+    setMessageType('success');
+    setMessage(successMessage);
     alert(successMessage);
     router.push(returnPath);
   };
+
+  if (blocked) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-4 md:p-6 lg:p-8">
@@ -242,6 +391,37 @@ export default function FormBuilder({
               </button>
             </div>
           </div>
+          {!readonly && pendingDraft && (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-bold">
+                發現上次未完成草稿（{new Date(pendingDraft.savedAt).toLocaleString('zh-TW')}）
+              </p>
+              <p className="mt-1">可直接還原上次內容，避免重新輸入。</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    applyDraft(pendingDraft);
+                    setPendingDraft(null);
+                  }}
+                  className="rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-white"
+                >
+                  還原草稿
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') localStorage.removeItem(draftKey);
+                    setPendingDraft(null);
+                    setLastDraftSavedAt(null);
+                  }}
+                  className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-bold text-amber-900"
+                >
+                  不使用草稿
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
@@ -336,19 +516,37 @@ export default function FormBuilder({
                   {completedQuestions} / {questions.length}
                 </div>
                 <p className="mt-1 text-sm text-gray-600">已有題目標題的題數</p>
+                {!readonly && <p className="mt-2 text-xs text-amber-800">{draftSavedText}</p>}
               </div>
 
-              {message && <p className="mt-4 text-sm font-medium text-red-600">{message}</p>}
+              {message && (
+                <p
+                  className={`mt-4 text-sm font-medium ${
+                    messageType === 'error' ? 'text-red-600' : 'text-emerald-700'
+                  }`}
+                >
+                  {message}
+                </p>
+              )}
 
               {!readonly && (
-                <button
-                  type="button"
-                  onClick={save}
-                  disabled={saving}
-                  className="mt-5 w-full rounded-2xl bg-amber-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-amber-200 disabled:opacity-60"
-                >
-                  {saving ? '儲存中...' : saveLabel}
-                </button>
+                <div className="mt-5 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => persistLocalDraft()}
+                    className="w-full rounded-2xl border border-amber-200 bg-white px-5 py-3 text-sm font-bold text-amber-900"
+                  >
+                    暫存到本機
+                  </button>
+                  <button
+                    type="button"
+                    onClick={save}
+                    disabled={saving}
+                    className="w-full rounded-2xl bg-amber-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-amber-200 disabled:opacity-60"
+                  >
+                    {saving ? '儲存中...' : saveLabel}
+                  </button>
+                </div>
               )}
             </section>
           </aside>
@@ -421,6 +619,60 @@ export default function FormBuilder({
                   </label>
                   {!readonly && (
                     <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cloned: BuilderQuestion = {
+                            ...createQuestion(question.type),
+                            title: '',
+                            description: '',
+                            isRequired: false,
+                            placeholder: '',
+                            minValue: '',
+                            maxValue: '',
+                            options:
+                              question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE'
+                                ? [createOption('選項 1'), createOption('選項 2')]
+                                : [],
+                          };
+                          setQuestions((prev) => {
+                            const currentIndex = prev.findIndex((item) => item.localId === question.localId);
+                            if (currentIndex < 0) return [...prev, cloned];
+                            const next = [...prev];
+                            next.splice(currentIndex + 1, 0, cloned);
+                            return next;
+                          });
+                        }}
+                        className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-amber-700"
+                      >
+                        同類新題
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cloned: BuilderQuestion = {
+                            ...question,
+                            id: undefined,
+                            localId: uid(),
+                            options: question.options.map((option) => ({
+                              ...option,
+                              id: undefined,
+                              localId: uid(),
+                            })),
+                          };
+                          setQuestions((prev) => {
+                            const currentIndex = prev.findIndex((item) => item.localId === question.localId);
+                            if (currentIndex < 0) return [...prev, cloned];
+                            const next = [...prev];
+                            next.splice(currentIndex + 1, 0, cloned);
+                            return next;
+                          });
+                        }}
+                        className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700"
+                      >
+                        <Copy className="mr-1 inline h-4 w-4" />
+                        複製
+                      </button>
                       <button
                         type="button"
                         onClick={() => moveQuestion(index, -1)}
@@ -515,51 +767,62 @@ export default function FormBuilder({
                       <div className="mb-3 flex items-center justify-between">
                         <p className="text-sm font-bold text-gray-800">選項</p>
                         {!readonly && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateQuestion(question.localId, {
-                                options: [...question.options, createOption(`選項 ${question.options.length + 1}`)],
-                              })
-                            }
-                            className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-amber-700"
-                          >
-                            <CirclePlus className="mr-1 inline h-4 w-4" />
-                            新增選項
-                          </button>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateQuestion(question.localId, {
+                                  options: [...question.options, createOption(`選項 ${question.options.length + 1}`)],
+                                })
+                              }
+                              className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-amber-700"
+                            >
+                              <CirclePlus className="mr-1 inline h-4 w-4" />
+                              新增選項
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const raw = window.prompt('每行輸入一個選項，會覆蓋目前選項');
+                                if (raw === null) return;
+                                const rows = raw
+                                  .split('\n')
+                                  .map((line) => line.trim())
+                                  .filter(Boolean);
+                                if (rows.length < 2) {
+                                  setMessageType('error');
+                                  setMessage('批次貼上至少需要 2 個選項');
+                                  return;
+                                }
+                                updateQuestion(question.localId, {
+                                  options: rows.map((label) => createOption(label)),
+                                });
+                                setMessageType('success');
+                                setMessage(`已貼上 ${rows.length} 個選項`);
+                              }}
+                              className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-amber-700"
+                            >
+                              批次貼上
+                            </button>
+                          </div>
                         )}
                       </div>
                       <div className="space-y-3">
                         {question.options.map((option) => (
-                          <div key={option.localId} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                          <div key={option.localId} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
                             <input
                               value={option.label}
                               onChange={(e) =>
                                 updateQuestion(question.localId, {
                                   options: question.options.map((item) =>
                                     item.localId === option.localId
-                                      ? { ...item, label: e.target.value }
+                                      ? { ...item, label: e.target.value, value: e.target.value }
                                       : item
                                   ),
                                 })
                               }
                               disabled={readonly}
-                              placeholder="顯示文字"
-                              className="rounded-2xl border border-gray-200 px-4 py-3 text-sm disabled:bg-gray-50"
-                            />
-                            <input
-                              value={option.value}
-                              onChange={(e) =>
-                                updateQuestion(question.localId, {
-                                  options: question.options.map((item) =>
-                                    item.localId === option.localId
-                                      ? { ...item, value: e.target.value }
-                                      : item
-                                  ),
-                                })
-                              }
-                              disabled={readonly}
-                              placeholder="儲存值（可留空）"
+                              placeholder="選項文字"
                               className="rounded-2xl border border-gray-200 px-4 py-3 text-sm disabled:bg-gray-50"
                             />
                             {!readonly && (

@@ -4,6 +4,7 @@ import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
 const prisma = new PrismaClient();
+const LEGACY_SEARCH_CODES = ['SEARCH_BINARY_100', 'SEARCH_BINARY_1000', 'SEARCH_BINARY_4B'];
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -122,7 +123,11 @@ export async function GET(request: NextRequest) {
     // 老師/管理員：僅要「目前已開放」清單（跨分類）
     if (user.role !== 'STUDENT' && request.nextUrl.searchParams.get('openSummary') === '1') {
       const opens = await prisma.classGameUnlock.findMany({
-        where: { classGroupId: classGroup.id, isUnlocked: true },
+        where: {
+          classGroupId: classGroup.id,
+          isUnlocked: true,
+          gameModule: { code: { notIn: LEGACY_SEARCH_CODES } },
+        },
         include: { gameModule: { select: { code: true, name: true } } },
         orderBy: { createdAt: 'asc' },
       });
@@ -150,6 +155,10 @@ export async function GET(request: NextRequest) {
     // 學生：顯示「所有分類」裡被老師開放的活動（可跨分類同時出現）
     if (user.role === 'STUDENT') {
       const allModules = await prisma.gameModule.findMany({
+        where: {
+          term: { isActive: true },
+          code: { notIn: LEGACY_SEARCH_CODES },
+        },
         select: { id: true, code: true, name: true },
         orderBy: { createdAt: 'asc' },
       });
@@ -158,13 +167,17 @@ export async function GET(request: NextRequest) {
     }
 
     // 由管理員建立的「分類」（terms）— 老師中控台依分類編輯開關
-    const categories = await prisma.term.findMany({ select: { id: true, name: true }, orderBy: { createdAt: 'asc' } });
+    const categories = await prisma.term.findMany({
+      where: user.role === 'ADMIN' ? undefined : { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { createdAt: 'asc' },
+    });
     if (!categories.length) return NextResponse.json({ error: '目前尚無活動分類（請管理員先建立分類與活動）' }, { status: 400 });
     const categoryId = (categoryIdParam && categories.some((c) => c.id === categoryIdParam)) ? categoryIdParam : categories[0].id;
     const category = categories.find((c) => c.id === categoryId) ?? categories[0];
 
     const gameModules = await prisma.gameModule.findMany({
-      where: { termId: categoryId },
+      where: { termId: categoryId, code: { notIn: LEGACY_SEARCH_CODES } },
       select: { id: true, code: true, name: true },
       orderBy: { createdAt: 'asc' },
     });

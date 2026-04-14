@@ -21,9 +21,26 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!(await requireAdmin())) return NextResponse.json({ error: '權限不足' }, { status: 403 });
   const { id } = await params;
   const body = await request.json();
-  const { name } = body;
-  if (!name || typeof name !== 'string' || !name.trim()) return NextResponse.json({ error: '請提供 name' }, { status: 400 });
-  const term = await prisma.term.update({ where: { id }, data: { name: name.trim() } });
+  const { name, isActive } = body as { name?: unknown; isActive?: unknown };
+  const data: { name?: string; isActive?: boolean } = {};
+
+  if (name !== undefined) {
+    if (typeof name !== 'string' || !name.trim()) {
+      return NextResponse.json({ error: 'name 格式錯誤' }, { status: 400 });
+    }
+    data.name = name.trim();
+  }
+  if (isActive !== undefined) {
+    if (typeof isActive !== 'boolean') {
+      return NextResponse.json({ error: 'isActive 格式錯誤' }, { status: 400 });
+    }
+    data.isActive = isActive;
+  }
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: '請提供可更新欄位（name 或 isActive）' }, { status: 400 });
+  }
+
+  const term = await prisma.term.update({ where: { id }, data });
   return NextResponse.json({ term });
 }
 

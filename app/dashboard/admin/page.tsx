@@ -25,6 +25,8 @@ const fmtLogTime = (iso: string) => {
 type AdminTab = 'teachers' | 'terms' | 'classes' | 'students' | 'logs';
 
 const TERM_321_NAME = '3/21資訊教育';
+const TERM_418_NAME = '4/18搜尋演算法';
+const LEGACY_SEARCH_CODES = ['SEARCH_BINARY_100', 'SEARCH_BINARY_1000', 'SEARCH_BINARY_4B'] as const;
 
 async function ensure321Modules(
   terms: { id: string; name: string }[],
@@ -126,6 +128,125 @@ async function ensure321Modules(
   );
 }
 
+async function ensure418Modules(
+  terms: { id: string; name: string; isActive: boolean }[],
+  onMutate: () => void | Promise<unknown>,
+  termNameInput?: string,
+) {
+  const targetTermName = (termNameInput ?? TERM_418_NAME).trim();
+  if (!targetTermName) {
+    alert('請提供期數名稱');
+    return;
+  }
+
+  const safeJson = async (r: Response) => {
+    try {
+      return (await r.json()) as {
+        error?: string;
+        term?: { id: string; name: string; isActive?: boolean };
+        terms?: { id: string; name: string; isActive?: boolean }[];
+      };
+    } catch {
+      return {};
+    }
+  };
+
+  let term = terms.find((t) => t.name === targetTermName);
+  if (!term) {
+    const r = await fetch('/api/admin/terms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ name: targetTermName }),
+    });
+    const d = await safeJson(r);
+    if (!r.ok) {
+      alert(d.error || `建立分類失敗（${r.status}）`);
+      return;
+    }
+    await onMutate();
+    term = d.term ? { id: d.term.id, name: d.term.name, isActive: d.term.isActive ?? true } : undefined;
+  }
+
+  const cleanupRes = await fetch('/api/admin/game-modules', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ codes: [...LEGACY_SEARCH_CODES] }),
+  });
+  const cleanupData = await safeJson(cleanupRes);
+  if (!cleanupRes.ok) {
+    alert(cleanupData.error || '清理舊搜尋模組失敗');
+    return;
+  }
+  if (!term) {
+    const r2 = await fetch('/api/admin/terms', { credentials: 'same-origin' });
+    const d2 = await safeJson(r2);
+    if (!r2.ok) {
+      alert(d2.error || `無法讀取活動分類（${r2.status}）`);
+      return;
+    }
+    term = (d2.terms ?? []).find((t) => t.name === targetTermName) as
+      | { id: string; name: string; isActive: boolean }
+      | undefined;
+  }
+  if (!term) {
+    alert(`找不到「${targetTermName}」分類`);
+    return;
+  }
+
+  const modules = [
+    { code: 'SEARCH_LINEAR_100', name: '線性搜尋挑戰（0-100）', description: '線性搜尋，逐步嘗試找數字。' },
+    { code: 'SEARCH_BINARY_100_RAW', name: '二元搜尋挑戰（0-100｜無提示）', description: '不顯示中間值提示，先自行嘗試。' },
+    { code: 'SEARCH_BINARY_100_GUIDE', name: '二元搜尋挑戰（0-100｜有提示）', description: '顯示 (下界 + 上界) ÷ 2 的提示。' },
+    { code: 'SEARCH_BINARY_1000_RAW', name: '二元搜尋挑戰（0-1000｜無提示）', description: '中範圍無提示挑戰。' },
+    { code: 'SEARCH_BINARY_1000_GUIDE', name: '二元搜尋挑戰（0-1000｜有提示）', description: '中範圍提示版，強化策略。' },
+    { code: 'SEARCH_BINARY_4B_RAW', name: '二元搜尋挑戰（0-4,000,000,000｜無提示）', description: '超大範圍無提示挑戰。' },
+    { code: 'SEARCH_BINARY_4B_GUIDE', name: '二元搜尋挑戰（0-4,000,000,000｜有提示）', description: '超大範圍提示版。' },
+    { code: 'SORT_BUBBLE_RAW', name: '泡泡排序（無提示）', description: '排序訓練：自行判斷相鄰交換。' },
+    { code: 'SORT_BUBBLE_GUIDE', name: '泡泡排序（有提示）', description: '排序訓練：提供交換建議。' },
+    { code: 'PATH_DIJKSTRA_RAW', name: '最短路徑 Dijkstra（無提示）', description: '最短路徑訓練：自行選擇下一節點。' },
+    { code: 'PATH_DIJKSTRA_GUIDE', name: '最短路徑 Dijkstra（有提示）', description: '最短路徑訓練：提示下一個建議節點。' },
+  ];
+
+  let created = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  for (const m of modules) {
+    const r = await fetch('/api/admin/game-modules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ termId: term.id, code: m.code, name: m.name, description: m.description }),
+    });
+    const d = await safeJson(r);
+    if (r.ok) {
+      created += 1;
+      continue;
+    }
+    const msg = String(d.error ?? '');
+    if (r.status === 409 || msg.includes('Unique') || msg.includes('已存在') || msg.includes('P2002')) {
+      skipped += 1;
+      continue;
+    }
+    errors.push(`${m.code}: ${msg || String(r.status)}`);
+  }
+
+  await onMutate();
+
+  if (errors.length > 0) {
+    alert(
+      `部分失敗（${errors.length} 項）。新建 ${created}、略過 ${skipped}。\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n…' : ''}`,
+    );
+    return;
+  }
+
+  alert(
+    `完成：${targetTermName} — 新建 ${created} 個模組，已存在略過 ${skipped} 個。\n並已清理舊搜尋代碼（SEARCH_BINARY_100/1000/4B）。\n含：搜尋（線性/二元）、排序（泡泡）、最短路徑（Dijkstra）之 RAW/GUIDE 版本。`,
+  );
+}
+
 interface ClassItem {
   id: string;
   name: string;
@@ -149,13 +270,17 @@ export default function AdminDashboard() {
   const [showMenu, setShowMenu] = useState(false);
   const [tab, setTab] = useState<AdminTab>('classes');
   const [ensure321Busy, setEnsure321Busy] = useState(false);
+  const [ensure418Busy, setEnsure418Busy] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const { data: meData } = useSWR<{ user?: { name: string; account: string; role: string } }>('/api/auth/me', fetcher);
   const user = meData?.user && meData.user.role === 'ADMIN' ? meData.user : null;
   const loading = !meData;
   const { data: classesData, mutate: mutateClasses } = useSWR<{ classes: ClassItem[] }>(user ? '/api/admin/classes' : null, fetcher);
-  const { data: termsData, mutate: mutateTerms } = useSWR<{ terms: { id: string; name: string }[] }>(user ? '/api/admin/terms' : null, fetcher);
+  const { data: termsData, mutate: mutateTerms } = useSWR<{ terms: { id: string; name: string; isActive: boolean }[] }>(
+    user ? '/api/admin/terms' : null,
+    fetcher
+  );
   const { data: usersData, mutate: mutateUsers } = useSWR<{ users: { id: string; account: string; name: string | null; role: string; createdAt: string }[] }>(user ? '/api/admin/users' : null, fetcher);
 
   useEffect(() => {
@@ -174,7 +299,13 @@ export default function AdminDashboard() {
 
   const classes = classesData?.classes ?? [];
   const termsRaw = termsData?.terms ?? [];
-  const terms = Array.isArray(termsRaw) ? termsRaw.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })) : [];
+  const terms = Array.isArray(termsRaw)
+    ? termsRaw.map((t: { id: string; name: string; isActive: boolean }) => ({
+        id: t.id,
+        name: t.name,
+        isActive: Boolean(t.isActive),
+      }))
+    : [];
   const teachers = (usersData?.users ?? []).filter((u) => u.role === 'TEACHER') as TeacherRow[];
 
   const handleLogout = async () => {
@@ -191,6 +322,22 @@ export default function AdminDashboard() {
       alert(e instanceof Error ? `執行失敗：${e.message}` : '執行失敗');
     } finally {
       setEnsure321Busy(false);
+    }
+  };
+
+  const runEnsure418 = async () => {
+    if (ensure418Busy) return;
+    const customTermName =
+      window.prompt('輸入要安裝搜尋模組的期數名稱（可新建）', TERM_418_NAME)?.trim() ?? '';
+    if (!customTermName) return;
+    setEnsure418Busy(true);
+    try {
+      await ensure418Modules(terms, mutateTerms, customTermName);
+    } catch (e) {
+      console.error('ensure418', e);
+      alert(e instanceof Error ? `執行失敗：${e.message}` : '執行失敗');
+    } finally {
+      setEnsure418Busy(false);
     }
   };
 
@@ -260,6 +407,14 @@ export default function AdminDashboard() {
             >
               {ensure321Busy ? '一鍵建立中…' : '一鍵新增 3/21 模組（河內塔、遊戲、班級公告）'}
             </button>
+            <button
+              type="button"
+              disabled={ensure418Busy}
+              onClick={runEnsure418}
+              className="mt-2 w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {ensure418Busy ? '一鍵建立中…' : '一鍵新增 4/18 模組（搜尋挑戰）'}
+            </button>
             <p className="mt-1.5 text-xs text-gray-500">不需切換分頁；完成後也可到「活動分類」查看列表。</p>
           </div>
 
@@ -280,7 +435,14 @@ export default function AdminDashboard() {
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               {tab === 'teachers' && <TeachersTab teachers={teachers} onMutate={mutateUsers} />}
               {tab === 'terms' && (
-                <TermsTab terms={terms} onMutate={mutateTerms} onEnsure321={runEnsure321} ensure321Busy={ensure321Busy} />
+                <TermsTab
+                  terms={terms}
+                  onMutate={mutateTerms}
+                  onEnsure321={runEnsure321}
+                  ensure321Busy={ensure321Busy}
+                  onEnsure418={runEnsure418}
+                  ensure418Busy={ensure418Busy}
+                />
               )}
               {tab === 'classes' && <ClassesTab classes={classes} terms={terms} teachers={teachers} onMutate={() => { mutateClasses(); mutateUsers(); }} />}
               {tab === 'students' && <StudentsTab classes={classes} onMutate={mutateClasses} />}
@@ -400,11 +562,15 @@ function TermsTab({
   onMutate,
   onEnsure321,
   ensure321Busy,
+  onEnsure418,
+  ensure418Busy,
 }: {
-  terms: { id: string; name: string }[];
+  terms: { id: string; name: string; isActive: boolean }[];
   onMutate: () => void;
   onEnsure321: () => void | Promise<void>;
   ensure321Busy: boolean;
+  onEnsure418: () => void | Promise<void>;
+  ensure418Busy: boolean;
 }) {
   const [name, setName] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
@@ -429,6 +595,19 @@ function TermsTab({
     if (res.ok) onMutate(); else alert(d.error || '刪除失敗');
   };
 
+  const toggleActive = async (term: { id: string; name: string; isActive: boolean }) => {
+    const actionLabel = term.isActive ? '關閉' : '重啟';
+    if (!confirm(`確定要${actionLabel}「${term.name}」嗎？`)) return;
+    const res = await fetch(`/api/admin/terms/${term.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive: !term.isActive }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) onMutate();
+    else alert((d as { error?: string }).error || `${actionLabel}失敗`);
+  };
+
   return (
     <div className="space-y-4">
       <h2 className="text-base font-bold text-gray-900">活動分類（與創班級分開；用於掛活動模組、可選綁班級）</h2>
@@ -445,13 +624,39 @@ function TermsTab({
         >
           {ensure321Busy ? '一鍵建立中…' : '一鍵新增 3/21 模組（左欄也可按）'}
         </button>
+        <button
+          type="button"
+          disabled={ensure418Busy}
+          onClick={() => void onEnsure418()}
+          className="rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {ensure418Busy ? '一鍵建立中…' : '一鍵新增 4/18 模組（搜尋挑戰）'}
+        </button>
       </div>
       <div className="rounded-xl border border-gray-200 divide-y">
         {terms.map((t) => (
           <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
-            <span className="font-semibold text-gray-900">{t.name}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-900">{t.name}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                  t.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                {t.isActive ? '啟用中' : '已關閉'}
+              </span>
+            </div>
             <div className="flex gap-2">
               <button type="button" onClick={() => { setEditId(t.id); setEditName(t.name); }} className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium">改名</button>
+              <button
+                type="button"
+                onClick={() => void toggleActive(t)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                  t.isActive ? 'bg-gray-800 text-white' : 'bg-emerald-600 text-white'
+                }`}
+              >
+                {t.isActive ? '關閉期數' : '重啟期數'}
+              </button>
               <button type="button" onClick={() => del(t.id)} className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600">刪除</button>
             </div>
           </div>

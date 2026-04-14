@@ -19,7 +19,7 @@ export default function AdminAnnouncementsPage() {
   const { sendLog } = useGameLog(null);
   const { data: meData } = useSWR<{ user?: { role: string; account: string } }>('/api/auth/me', fetcher);
   const { data: classesData } = useSWR<{ classes: { id: string; name: string; schoolCode: string }[] }>('/api/admin/classes', fetcher);
-  const classes = classesData?.classes ?? [];
+  const classes = useMemo(() => classesData?.classes ?? [], [classesData?.classes]);
   const [classId, setClassId] = useState('');
   useEffect(() => {
     if (classes.length && !classId) setClassId(classes[0].id);
@@ -35,6 +35,10 @@ export default function AdminAnnouncementsPage() {
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [isPinned, setIsPinned] = useState(false);
+  const [isImportant, setIsImportant] = useState(false);
+  const [ctaLabel, setCtaLabel] = useState('');
+  const [ctaUrl, setCtaUrl] = useState('');
   const [visibleFrom, setVisibleFrom] = useState(() => toDatetimeLocalValue(new Date().toISOString()));
   const [visibleUntil, setVisibleUntil] = useState('');
   const [saving, setSaving] = useState(false);
@@ -60,14 +64,32 @@ export default function AdminAnnouncementsPage() {
     setEditingId(null);
     setTitle('');
     setBody('');
+    setIsPinned(false);
+    setIsImportant(false);
+    setCtaLabel('');
+    setCtaUrl('');
     setVisibleFrom(toDatetimeLocalValue(new Date().toISOString()));
     setVisibleUntil('');
   };
 
-  const startEdit = (a: { id: string; title: string; body: string; visibleFrom: string; visibleUntil: string | null }) => {
+  const startEdit = (a: {
+    id: string;
+    title: string;
+    body: string;
+    isPinned?: boolean;
+    isImportant?: boolean;
+    ctaLabel?: string | null;
+    ctaUrl?: string | null;
+    visibleFrom: string;
+    visibleUntil: string | null;
+  }) => {
     setEditingId(a.id);
     setTitle(a.title);
     setBody(a.body);
+    setIsPinned(Boolean(a.isPinned));
+    setIsImportant(Boolean(a.isImportant));
+    setCtaLabel(a.ctaLabel ?? '');
+    setCtaUrl(a.ctaUrl ?? '');
     setVisibleFrom(toDatetimeLocalValue(a.visibleFrom));
     setVisibleUntil(a.visibleUntil ? toDatetimeLocalValue(a.visibleUntil) : '');
   };
@@ -83,6 +105,10 @@ export default function AdminAnnouncementsPage() {
         classGroupId: classId,
         title: title.trim(),
         body: body.trim(),
+        isPinned,
+        isImportant,
+        ctaLabel: ctaLabel.trim(),
+        ctaUrl: ctaUrl.trim(),
         visibleFrom: new Date(visibleFrom).toISOString(),
         visibleUntil: visibleUntil.trim() ? new Date(visibleUntil).toISOString() : null,
       };
@@ -93,6 +119,10 @@ export default function AdminAnnouncementsPage() {
           body: JSON.stringify({
             title: payload.title,
             body: payload.body,
+            isPinned: payload.isPinned,
+            isImportant: payload.isImportant,
+            ctaLabel: payload.ctaLabel,
+            ctaUrl: payload.ctaUrl,
             visibleFrom: payload.visibleFrom,
             visibleUntil: payload.visibleUntil,
           }),
@@ -214,6 +244,37 @@ export default function AdminAnnouncementsPage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
+                <label className="text-xs font-bold text-gray-500">連結按鈕文字（選填）</label>
+                <input
+                  value={ctaLabel}
+                  onChange={(e) => setCtaLabel(e.target.value)}
+                  maxLength={80}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+                  placeholder="例如：開啟教材"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500">連結網址（選填）</label>
+                <input
+                  value={ctaUrl}
+                  onChange={(e) => setCtaUrl(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} />
+                置頂公告
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <input type="checkbox" checked={isImportant} onChange={(e) => setIsImportant(e.target.checked)} />
+                重要公告
+              </label>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
                 <label className="text-xs font-bold text-gray-500">顯示開始</label>
                 <input
                   type="datetime-local"
@@ -260,6 +321,10 @@ export default function AdminAnnouncementsPage() {
                 id: string;
                 title: string;
                 body: string;
+                isPinned?: boolean;
+                isImportant?: boolean;
+                ctaLabel?: string | null;
+                ctaUrl?: string | null;
                 visibleFrom: string;
                 visibleUntil: string | null;
                 readCount: number;
@@ -270,11 +335,16 @@ export default function AdminAnnouncementsPage() {
                   className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-gray-50/80 p-4 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
-                    <div className="font-bold text-gray-900">{a.title}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="font-bold text-gray-900">{a.title}</div>
+                      {a.isPinned && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700">置頂</span>}
+                      {a.isImportant && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">重要</span>}
+                    </div>
                     <div className="mt-1 text-xs text-gray-500">
                       {fmt(a.visibleFrom)}
                       {a.visibleUntil ? ` · 截止 ${fmt(a.visibleUntil)}` : ''} · 已讀 {a.readCount} · {a.createdBy.account}
                     </div>
+                    {a.ctaLabel && a.ctaUrl && <div className="mt-1 text-xs text-sky-700">連結按鈕：{a.ctaLabel}</div>}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <button

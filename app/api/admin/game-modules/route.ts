@@ -40,3 +40,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '建立失敗' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  if (!(await requireAdmin())) return NextResponse.json({ error: '權限不足' }, { status: 403 });
+  let body: { termId?: string; codes?: string[] };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: '無效的 JSON' }, { status: 400 });
+  }
+  const { termId, codes } = body;
+  if (!Array.isArray(codes) || codes.length === 0 || codes.some((c) => typeof c !== 'string' || !c.trim())) {
+    return NextResponse.json({ error: '請提供 codes (string[])' }, { status: 400 });
+  }
+
+  const result = await prisma.gameModule.deleteMany({
+    where: {
+      ...(termId ? { termId } : {}),
+      code: { in: codes.map((c) => c.trim()) },
+    },
+  });
+
+  return NextResponse.json({ success: true, deletedCount: result.count });
+}

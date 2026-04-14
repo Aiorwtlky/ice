@@ -419,6 +419,10 @@ model ClassAnnouncement {
   classGroupId String
   title        String
   body         String    @db.Text
+  isPinned     Boolean   @default(false)
+  isImportant  Boolean   @default(false)
+  ctaLabel     String?
+  ctaUrl       String?
   createdById  String
   /** 學生端開始顯示（含） */
   visibleFrom  DateTime  @default(now())
@@ -432,6 +436,7 @@ model ClassAnnouncement {
   reads      AnnouncementRead[]
 
   @@index([classGroupId, visibleFrom])
+  @@index([classGroupId, isPinned, isImportant, visibleFrom])
   @@map("class_announcements")
 }
 

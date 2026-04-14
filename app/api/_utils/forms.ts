@@ -50,7 +50,8 @@ export function normalizeFormQuestions(input: unknown): FormQuestionInput[] {
         const row = (option ?? {}) as Record<string, unknown>;
         const id = typeof row.id === 'string' ? row.id : undefined;
         const label = String(row.label ?? '').trim();
-        const value = String(row.value ?? (label || `option_${optionIndex + 1}`)).trim();
+        const rawValue = String(row.value ?? '').trim();
+        const value = rawValue || label || `option_${optionIndex + 1}`;
         if (!label) return;
         options.push({ id, label, value });
       });

@@ -5,6 +5,9 @@ import { useEffect, useState, useRef } from 'react';
 import useSWR from 'swr';
 import GameFrame from '@/components/GameFrame';
 import { HanoiGame, Click1Game, Click2Game, MonsterGobblerGame, BubbleTeaMasterGame, MagicPancakeTowerGame } from '@/components/games/StudentGameViews';
+import SearchChallengeGame from '@/components/games/SearchChallengeGame';
+import SortBubbleGame from '@/components/games/SortBubbleGame';
+import PathDijkstraGame from '@/components/games/PathDijkstraGame';
 import { TeachingStack, TeachingQueue, TeachingHanoiRecursive, TeachingModuleShell } from '@/components/teaching';
 import FormActivityPlayer from '@/components/forms/FormActivityPlayer';
 import { useGameLog } from '@/hooks/useGameLog';
@@ -23,6 +26,100 @@ interface StatusData {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+const SEARCH_GAME_CONFIG: Record<
+  string,
+  {
+    mode: 'LINEAR' | 'BINARY';
+    rangeMax: number;
+    hintEnabled: boolean;
+    helpTip: string;
+    helpText: string;
+  }
+> = {
+  SEARCH_LINEAR_100: {
+    mode: 'LINEAR',
+    rangeMax: 100,
+    hintEnabled: false,
+    helpTip: '線性搜尋：逐步嘗試',
+    helpText:
+      '線性搜尋會從前往後慢慢找。你可以觀察次數如何隨範圍增加而變大。',
+  },
+  SEARCH_BINARY_100_RAW: {
+    mode: 'BINARY',
+    rangeMax: 100,
+    hintEnabled: false,
+    helpTip: '二元搜尋（無提示）',
+    helpText:
+      '先自己嘗試，不提供中間值提示。完成後再切到有提示版比較效率。',
+  },
+  SEARCH_BINARY_100_GUIDE: {
+    mode: 'BINARY',
+    rangeMax: 100,
+    hintEnabled: true,
+    helpTip: '二元搜尋（有提示）',
+    helpText:
+      '提示區會顯示 (下界 + 上界) ÷ 2，幫助你練習怎麼選中間數。',
+  },
+  SEARCH_BINARY_1000_RAW: {
+    mode: 'BINARY',
+    rangeMax: 1000,
+    hintEnabled: false,
+    helpTip: '二元搜尋 1000（無提示）',
+    helpText:
+      '中範圍無提示版，先挑戰自己是否能用切半策略快速完成。',
+  },
+  SEARCH_BINARY_1000_GUIDE: {
+    mode: 'BINARY',
+    rangeMax: 1000,
+    hintEnabled: true,
+    helpTip: '二元搜尋 1000（有提示）',
+    helpText:
+      '提示區會顯示切半公式，幫你把策略固定下來。',
+  },
+  SEARCH_BINARY_4B_RAW: {
+    mode: 'BINARY',
+    rangeMax: 4_000_000_000,
+    hintEnabled: false,
+    helpTip: '二元搜尋 40 億（無提示）',
+    helpText:
+      '超大範圍無提示，檢驗你是否真正掌握二元搜尋。',
+  },
+  SEARCH_BINARY_4B_GUIDE: {
+    mode: 'BINARY',
+    rangeMax: 4_000_000_000,
+    hintEnabled: true,
+    helpTip: '二元搜尋 40 億（有提示）',
+    helpText:
+      '超大範圍搭配公式提示，觀察次數與理論值差距。',
+  },
+};
+
+const SORT_GAME_CONFIG: Record<string, { guideEnabled: boolean; helpTip: string; helpText: string }> = {
+  SORT_BUBBLE_RAW: {
+    guideEnabled: false,
+    helpTip: '泡泡排序（無提示）',
+    helpText: '請自行判斷每一組相鄰數字是否要交換。',
+  },
+  SORT_BUBBLE_GUIDE: {
+    guideEnabled: true,
+    helpTip: '泡泡排序（有提示）',
+    helpText: '提示區會告訴你該組建議交換或不交換。',
+  },
+};
+
+const PATH_GAME_CONFIG: Record<string, { guideEnabled: boolean; helpTip: string; helpText: string }> = {
+  PATH_DIJKSTRA_RAW: {
+    guideEnabled: false,
+    helpTip: '最短路徑（無提示）',
+    helpText: '請自行判斷下一個距離最小的節點。',
+  },
+  PATH_DIJKSTRA_GUIDE: {
+    guideEnabled: true,
+    helpTip: '最短路徑（有提示）',
+    helpText: '提示區會顯示下一個建議選擇節點。',
+  },
+};
+
 export default function StudentGamePage() {
   const params = useParams();
   const router = useRouter();
@@ -35,8 +132,12 @@ export default function StudentGamePage() {
   const gameName = unlock?.gameName ?? (gameCode || '遊戲');
   const gameModuleId = unlock?.gameModuleId ?? null;
   const sessionId = statusData?.session?.id ?? null;
+  const searchConfig = SEARCH_GAME_CONFIG[gameCode];
+  const sortConfig = SORT_GAME_CONFIG[gameCode];
+  const pathConfig = PATH_GAME_CONFIG[gameCode];
+  const isSummaryOnlyGame = Boolean(searchConfig || sortConfig || pathConfig);
 
-  const { sendLog } = useGameLog(gameModuleId, sessionId);
+  const { sendLog } = useGameLog(gameModuleId, sessionId, !isSummaryOnlyGame);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -53,11 +154,11 @@ export default function StudentGamePage() {
   const startSentRef = useRef(false);
   const hanoiHelpRef = useRef<{ openHelp: () => void } | null>(null);
   useEffect(() => {
-    if (authChecked && gameModuleId && !startSentRef.current) {
+    if (!isSummaryOnlyGame && authChecked && gameModuleId && !startSentRef.current) {
       startSentRef.current = true;
       sendLog('START');
     }
-  }, [authChecked, gameModuleId, sendLog]);
+  }, [authChecked, gameModuleId, isSummaryOnlyGame, sendLog]);
 
   const headerTitle = 'NovaInsight 資訊科普教育平台';
   const headerMenuLinks = [{ label: '📢 班級公告', href: '/student/announcements' }];
@@ -71,14 +172,139 @@ export default function StudentGamePage() {
   }
 
   const handleBack = () => {
-    sendLog('BACK');
+    if (!isSummaryOnlyGame) sendLog('BACK');
     router.push('/dashboard/student');
   };
   const handleLogout = async () => {
-    sendLog('LOGOUT');
+    if (!isSummaryOnlyGame) sendLog('LOGOUT');
     await fetch('/api/auth/logout', { method: 'POST' });
     router.replace('/');
   };
+
+  const sendSearchCompleteLog = async (payload: {
+    attempts: number;
+    durationMs: number;
+    mode: 'LINEAR' | 'BINARY';
+    rangeMax: number;
+  }) => {
+    if (!gameModuleId) return;
+    await fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'COMPLETE',
+        gameModuleId,
+        sessionId: sessionId || undefined,
+        isCorrect: true,
+        timeDiffMs: payload.durationMs,
+        payload: {
+          mode: payload.mode,
+          rangeMax: payload.rangeMax,
+          attempts: payload.attempts,
+        },
+      }),
+    });
+  };
+
+  if (searchConfig) {
+    return (
+      <GameFrame
+        headerMenuLinks={headerMenuLinks}
+        headerTitle={headerTitle}
+        userLabel={user?.account}
+        userAvatar={user?.account?.slice(0, 2).toUpperCase()}
+        onBack={handleBack}
+        onLogout={handleLogout}
+        onHelp={() => {
+          alert(searchConfig.helpText);
+        }}
+        helpTip={searchConfig.helpTip}
+        mainLayout="fill"
+      >
+        <SearchChallengeGame
+          mode={searchConfig.mode}
+          rangeMin={0}
+          rangeMax={searchConfig.rangeMax}
+          hintEnabled={searchConfig.hintEnabled}
+          onComplete={sendSearchCompleteLog}
+        />
+      </GameFrame>
+    );
+  }
+
+  if (sortConfig) {
+    return (
+      <GameFrame
+        headerMenuLinks={headerMenuLinks}
+        headerTitle={headerTitle}
+        userLabel={user?.account}
+        userAvatar={user?.account?.slice(0, 2).toUpperCase()}
+        onBack={handleBack}
+        onLogout={handleLogout}
+        onHelp={() => {
+          alert(sortConfig.helpText);
+        }}
+        helpTip={sortConfig.helpTip}
+        mainLayout="fill"
+      >
+        <SortBubbleGame
+          guideEnabled={sortConfig.guideEnabled}
+          onComplete={async ({ swaps, decisions, durationMs }) => {
+            if (!gameModuleId) return;
+            await fetch('/api/logs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'COMPLETE',
+                gameModuleId,
+                sessionId: sessionId || undefined,
+                isCorrect: true,
+                timeDiffMs: durationMs,
+                payload: { kind: 'SORT_BUBBLE', swaps, decisions },
+              }),
+            });
+          }}
+        />
+      </GameFrame>
+    );
+  }
+
+  if (pathConfig) {
+    return (
+      <GameFrame
+        headerMenuLinks={headerMenuLinks}
+        headerTitle={headerTitle}
+        userLabel={user?.account}
+        userAvatar={user?.account?.slice(0, 2).toUpperCase()}
+        onBack={handleBack}
+        onLogout={handleLogout}
+        onHelp={() => {
+          alert(pathConfig.helpText);
+        }}
+        helpTip={pathConfig.helpTip}
+        mainLayout="fill"
+      >
+        <PathDijkstraGame
+          guideEnabled={pathConfig.guideEnabled}
+          onComplete={async ({ correctSteps, wrongChoices, durationMs }) => {
+            if (!gameModuleId) return;
+            await fetch('/api/logs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'COMPLETE',
+                gameModuleId,
+                sessionId: sessionId || undefined,
+                isCorrect: true,
+                timeDiffMs: durationMs,
+                payload: { kind: 'PATH_DIJKSTRA', correctSteps, wrongChoices },
+              }),
+            });
+          }}
+        />
+      </GameFrame>
+    );
+  }
 
   if (gameCode === 'CLICK_1') {
     return (

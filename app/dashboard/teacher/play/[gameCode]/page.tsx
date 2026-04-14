@@ -5,6 +5,9 @@ import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import useSWR from 'swr';
 import GameFrame from '@/components/GameFrame';
 import { HanoiGame, Click1Game, Click2Game, MonsterGobblerGame, BubbleTeaMasterGame, MagicPancakeTowerGame } from '@/components/games/StudentGameViews';
+import SearchChallengeGame from '@/components/games/SearchChallengeGame';
+import SortBubbleGame from '@/components/games/SortBubbleGame';
+import PathDijkstraGame from '@/components/games/PathDijkstraGame';
 import { TeachingStack, TeachingQueue, TeachingHanoiRecursive, TeachingModuleShell } from '@/components/teaching';
 import FormActivityPlayer from '@/components/forms/FormActivityPlayer';
 import {
@@ -17,6 +20,93 @@ import {
 } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+const SEARCH_GAME_CONFIG: Record<
+  string,
+  {
+    mode: 'LINEAR' | 'BINARY';
+    rangeMax: number;
+    hintEnabled: boolean;
+    helpTip: string;
+    helpText: string;
+  }
+> = {
+  SEARCH_LINEAR_100: {
+    mode: 'LINEAR',
+    rangeMax: 100,
+    hintEnabled: false,
+    helpTip: '線性搜尋示範',
+    helpText: '逐步搜尋，讓學生觀察次數如何隨範圍增加。',
+  },
+  SEARCH_BINARY_100_RAW: {
+    mode: 'BINARY',
+    rangeMax: 100,
+    hintEnabled: false,
+    helpTip: '二元搜尋示範（無提示）',
+    helpText: '無提示版，先讓學生靠直覺嘗試。',
+  },
+  SEARCH_BINARY_100_GUIDE: {
+    mode: 'BINARY',
+    rangeMax: 100,
+    hintEnabled: true,
+    helpTip: '二元搜尋示範（有提示）',
+    helpText: '顯示 (下界 + 上界) ÷ 2 的提示公式。',
+  },
+  SEARCH_BINARY_1000_RAW: {
+    mode: 'BINARY',
+    rangeMax: 1000,
+    hintEnabled: false,
+    helpTip: '二元搜尋 1000（無提示）',
+    helpText: '中範圍無提示版，便於先觀察學生策略。',
+  },
+  SEARCH_BINARY_1000_GUIDE: {
+    mode: 'BINARY',
+    rangeMax: 1000,
+    hintEnabled: true,
+    helpTip: '二元搜尋 1000（有提示）',
+    helpText: '中範圍提示版，強化切半流程。',
+  },
+  SEARCH_BINARY_4B_RAW: {
+    mode: 'BINARY',
+    rangeMax: 4_000_000_000,
+    hintEnabled: false,
+    helpTip: '二元搜尋 40 億（無提示）',
+    helpText: '超大範圍無提示版，檢驗是否掌握方法。',
+  },
+  SEARCH_BINARY_4B_GUIDE: {
+    mode: 'BINARY',
+    rangeMax: 4_000_000_000,
+    hintEnabled: true,
+    helpTip: '二元搜尋 40 億（有提示）',
+    helpText: '超大範圍提示版，凸顯對數級搜尋效率。',
+  },
+};
+
+const SORT_GAME_CONFIG: Record<string, { guideEnabled: boolean; helpTip: string; helpText: string }> = {
+  SORT_BUBBLE_RAW: {
+    guideEnabled: false,
+    helpTip: '泡泡排序（無提示）',
+    helpText: '請自行判斷每一組相鄰數字是否要交換。',
+  },
+  SORT_BUBBLE_GUIDE: {
+    guideEnabled: true,
+    helpTip: '泡泡排序（有提示）',
+    helpText: '提示區會告訴你該組建議交換或不交換。',
+  },
+};
+
+const PATH_GAME_CONFIG: Record<string, { guideEnabled: boolean; helpTip: string; helpText: string }> = {
+  PATH_DIJKSTRA_RAW: {
+    guideEnabled: false,
+    helpTip: '最短路徑（無提示）',
+    helpText: '請自行判斷下一個距離最小的節點。',
+  },
+  PATH_DIJKSTRA_GUIDE: {
+    guideEnabled: true,
+    helpTip: '最短路徑（有提示）',
+    helpText: '提示區會顯示下一個建議選擇節點。',
+  },
+};
 
 interface UnlockItem {
   unlockId: string | null;
@@ -543,7 +633,87 @@ function TeacherPlayPageInner() {
           <FormActivityPlayer gameCode={gameCode} previewMode />
         </GameFrame>
       )}
-      {!['CLICK_1', 'CLICK_2', 'HANOI_3', 'HANOI_4', 'HANOI_5', 'HANOI_6', 'HANOI_7', 'HANOI_8', 'MONSTER_GOBBLER', 'BUBBLE_TEA_MASTER', 'MAGIC_PANCAKE_TOWER', 'TEACH_STACK', 'TEACH_QUEUE', 'TEACH_HANOI_RECURSION'].includes(gameCode) && !gameCode.startsWith('FORM_') && (
+      {SEARCH_GAME_CONFIG[gameCode] && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          onHelp={() => {
+            alert(SEARCH_GAME_CONFIG[gameCode].helpText);
+          }}
+          helpTip={SEARCH_GAME_CONFIG[gameCode].helpTip}
+          mainLayout="fill"
+        >
+          <SearchChallengeGame
+            mode={SEARCH_GAME_CONFIG[gameCode].mode}
+            rangeMin={0}
+            rangeMax={SEARCH_GAME_CONFIG[gameCode].rangeMax}
+            hintEnabled={SEARCH_GAME_CONFIG[gameCode].hintEnabled}
+            previewMode
+          />
+        </GameFrame>
+      )}
+      {SORT_GAME_CONFIG[gameCode] && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          onHelp={() => {
+            alert(SORT_GAME_CONFIG[gameCode].helpText);
+          }}
+          helpTip={SORT_GAME_CONFIG[gameCode].helpTip}
+          mainLayout="fill"
+        >
+          <SortBubbleGame guideEnabled={SORT_GAME_CONFIG[gameCode].guideEnabled} previewMode />
+        </GameFrame>
+      )}
+      {PATH_GAME_CONFIG[gameCode] && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          onHelp={() => {
+            alert(PATH_GAME_CONFIG[gameCode].helpText);
+          }}
+          helpTip={PATH_GAME_CONFIG[gameCode].helpTip}
+          mainLayout="fill"
+        >
+          <PathDijkstraGame guideEnabled={PATH_GAME_CONFIG[gameCode].guideEnabled} previewMode />
+        </GameFrame>
+      )}
+      {![
+        'CLICK_1',
+        'CLICK_2',
+        'HANOI_3',
+        'HANOI_4',
+        'HANOI_5',
+        'HANOI_6',
+        'HANOI_7',
+        'HANOI_8',
+        'MONSTER_GOBBLER',
+        'BUBBLE_TEA_MASTER',
+        'MAGIC_PANCAKE_TOWER',
+        'TEACH_STACK',
+        'TEACH_QUEUE',
+        'TEACH_HANOI_RECURSION',
+        'SEARCH_LINEAR_100',
+        'SEARCH_BINARY_100_RAW',
+        'SEARCH_BINARY_100_GUIDE',
+        'SEARCH_BINARY_1000_RAW',
+        'SEARCH_BINARY_1000_GUIDE',
+        'SEARCH_BINARY_4B_RAW',
+        'SEARCH_BINARY_4B_GUIDE',
+        'SORT_BUBBLE_RAW',
+        'SORT_BUBBLE_GUIDE',
+        'PATH_DIJKSTRA_RAW',
+        'PATH_DIJKSTRA_GUIDE',
+      ].includes(gameCode) && !gameCode.startsWith('FORM_') && (
         <GameFrame headerTitle={headerTitle} userLabel="老師示範" userAvatar={abbr} onBack={handleBack} onLogout={handleLogout}>
           <div className="flex h-full items-center justify-center p-6 text-gray-600">此活動尚無示範畫面</div>
         </GameFrame>
