@@ -82,7 +82,7 @@ function createRows() {
 function createMissions(rows: StudentRow[]): Mission[] {
   const colorA = randomFrom(COLOR_OPTIONS);
   const colorB = randomFrom(COLOR_OPTIONS.filter((c) => c !== colorA));
-  return [
+  const missions: Mission[] = [
     {
       title: '任務 1 / 3',
       description: `請建立規則讓「${colorA} 衣服中最矮者」會出現在最前段，並點出該列。`,
@@ -109,7 +109,8 @@ function createMissions(rows: StudentRow[]): Mission[] {
       ],
       getTargetId: (sortedRows) => sortedRows.find((row) => row.color === colorB)?.id ?? null,
     },
-  ].filter((mission) => mission.getTargetId(applyRules(rows, mission.requiredRules)) !== null);
+  ];
+  return missions.filter((mission) => mission.getTargetId(applyRules(rows, mission.requiredRules)) !== null);
 }
 
 function sameRules(a: SortRule[], b: SortRule[]) {
