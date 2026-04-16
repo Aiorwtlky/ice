@@ -82,8 +82,8 @@ export default function SortBubbleGame({ guideEnabled = false, previewMode = fal
   };
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-3 p-2 sm:p-4 lg:grid lg:grid-cols-[1.25fr_1fr]">
-      <section className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm sm:p-5 lg:rounded-3xl lg:p-6">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col gap-3 overflow-y-auto p-2 sm:p-4 lg:grid lg:grid-cols-[1.25fr_1fr]">
+      <section className="flex min-h-0 flex-col rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm sm:p-5 lg:rounded-3xl lg:p-6">
         <h2 className="text-xl font-black text-gray-900 sm:text-2xl">泡泡排序挑戰</h2>
         <p className="mt-2 text-sm text-gray-600">每次比較相鄰兩個數字，若左邊較大就交換。</p>
 
@@ -93,7 +93,7 @@ export default function SortBubbleGame({ guideEnabled = false, previewMode = fal
             return (
               <div
                 key={`${i}-${n}`}
-                className={`min-w-11 rounded-xl px-4 py-3 text-center text-lg font-black ${
+                className={`min-w-9 rounded-xl px-3 py-2 text-center text-base font-black sm:min-w-11 sm:px-4 sm:py-3 sm:text-lg ${
                   active ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-900'
                 }`}
               >
@@ -138,7 +138,7 @@ export default function SortBubbleGame({ guideEnabled = false, previewMode = fal
         </div>
       </section>
 
-      <aside className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm sm:p-5 lg:rounded-3xl lg:p-6">
+      <aside className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm sm:p-5 lg:min-h-0 lg:overflow-y-auto lg:rounded-3xl lg:p-6">
         <h3 className="text-base font-black text-gray-900 sm:text-lg">教學重點</h3>
         <div className="mt-3 space-y-2 text-sm text-gray-700">
           <p>決策次數：<span className="font-bold">{decisions}</span></p>

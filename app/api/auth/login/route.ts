@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
+import { accountLookupKey, normalizeAccountInput } from '@/lib/account-normalize';
 
 const prisma = new PrismaClient();
 
@@ -36,19 +37,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await withTimeout(
-      prisma.user.findUnique({
-        where: { account },
-        include: {
-          studentGroup: {
-            include: { activeTerm: true },
-          },
-          teacherGroups: { include: { activeTerm: true } },
-        },
-      }),
+    const inputAccount = normalizeAccountInput(String(account));
+    const looseKey = accountLookupKey(inputAccount);
+
+    const matched = await withTimeout(
+      prisma.$queryRaw<{ id: string }[]>`
+        SELECT "id"
+        FROM "users"
+        WHERE REPLACE(UPPER("account"), '-', '') = ${looseKey}
+        ORDER BY CASE WHEN UPPER("account") = ${inputAccount} THEN 0 ELSE 1 END, "createdAt" ASC
+        LIMIT 1
+      `,
       5000,
       'auth/login: prisma timeout'
     );
+
+    const userId = matched[0]?.id;
+    const user = userId
+      ? await withTimeout(
+          prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+              studentGroup: {
+                include: { activeTerm: true },
+              },
+              teacherGroups: { include: { activeTerm: true } },
+            },
+          }),
+          5000,
+          'auth/login: prisma timeout'
+        )
+      : null;
 
     if (!user) {
       return NextResponse.json(

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, LogIn, Sparkles } from 'lucide-react';
+import { normalizeAccountInput } from '@/lib/account-normalize';
 
 export default function Home() {
   const router = useRouter();
@@ -103,12 +104,14 @@ export default function Home() {
                     id="account"
                     type="text"
                     value={account}
-                    onChange={(e) => setAccount(e.target.value)}
+                    onChange={(e) => setAccount(normalizeAccountInput(e.target.value))}
                     required
                     placeholder="例：ST-01、TC-ML01"
                     disabled={loading}
+                    autoCapitalize="characters"
                     className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder-gray-400 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                   />
+                  <p className="mt-1 text-xs text-gray-500">帳號會自動轉大寫，連字號（-）可輸可不輸。</p>
                 </div>
                 <div>
                   <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">

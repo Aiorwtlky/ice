@@ -25,7 +25,7 @@ const fmtLogTime = (iso: string) => {
 type AdminTab = 'teachers' | 'terms' | 'classes' | 'students' | 'logs';
 
 const TERM_321_NAME = '3/21資訊教育';
-const TERM_418_NAME = '4/18搜尋演算法';
+const TERM_418_NAME = '4/18演算法思維 2.0';
 const LEGACY_SEARCH_CODES = ['SEARCH_BINARY_100', 'SEARCH_BINARY_1000', 'SEARCH_BINARY_4B'] as const;
 
 async function ensure321Modules(
@@ -196,6 +196,11 @@ async function ensure418Modules(
   }
 
   const modules = [
+    { code: 'ALGO_LAB_LINEAR', name: '實驗一：搜尋的苦勞（線性搜尋）', description: '翻牌互動，觀察 O(N) 搜尋成本。' },
+    { code: 'ALGO_LAB_BUBBLE', name: '實驗二：建立秩序（泡泡排序）', description: '柱狀圖互動交換，理解 O(N^2) 排序代價。' },
+    { code: 'ALGO_LAB_BINARY', name: '實驗三：切一半的神蹟（二分搜尋）', description: '中位點互動排除，理解 O(logN) 搜尋效率。' },
+    { code: 'ALGO_LAB_DETECTIVE', name: '實驗四：資料偵探（綜合任務）', description: '多案例完成篩選、排序、定位的完整流程。' },
+    { code: 'ALGO_LAB_SPREADSHEET', name: '實驗五：試算表正式排序（進階）', description: 'Excel 風格雙層排序流程，完成正式資料定位任務。' },
     { code: 'SEARCH_LINEAR_100', name: '線性搜尋挑戰（0-100）', description: '線性搜尋，逐步嘗試找數字。' },
     { code: 'SEARCH_BINARY_100_RAW', name: '二元搜尋挑戰（0-100｜無提示）', description: '不顯示中間值提示，先自行嘗試。' },
     { code: 'SEARCH_BINARY_100_GUIDE', name: '二元搜尋挑戰（0-100｜有提示）', description: '顯示 (下界 + 上界) ÷ 2 的提示。' },
@@ -243,7 +248,7 @@ async function ensure418Modules(
   }
 
   alert(
-    `完成：${targetTermName} — 新建 ${created} 個模組，已存在略過 ${skipped} 個。\n並已清理舊搜尋代碼（SEARCH_BINARY_100/1000/4B）。\n含：搜尋（線性/二元）、排序（泡泡）、最短路徑（Dijkstra）之 RAW/GUIDE 版本。`,
+    `完成：${targetTermName} — 新建 ${created} 個模組，已存在略過 ${skipped} 個。\n並已清理舊搜尋代碼（SEARCH_BINARY_100/1000/4B）。\n含：演算法思維 2.0 五大實驗 + 搜尋/排序/最短路徑 RAW/GUIDE 模組。`,
   );
 }
 
@@ -413,7 +418,7 @@ export default function AdminDashboard() {
               onClick={runEnsure418}
               className="mt-2 w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {ensure418Busy ? '一鍵建立中…' : '一鍵新增 4/18 模組（搜尋挑戰）'}
+              {ensure418Busy ? '一鍵建立中…' : '一鍵新增 4/18 模組（演算法思維 2.0）'}
             </button>
             <p className="mt-1.5 text-xs text-gray-500">不需切換分頁；完成後也可到「活動分類」查看列表。</p>
           </div>
@@ -630,7 +635,7 @@ function TermsTab({
           onClick={() => void onEnsure418()}
           className="rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {ensure418Busy ? '一鍵建立中…' : '一鍵新增 4/18 模組（搜尋挑戰）'}
+          {ensure418Busy ? '一鍵建立中…' : '一鍵新增 4/18 模組（演算法思維 2.0）'}
         </button>
       </div>
       <div className="rounded-xl border border-gray-200 divide-y">

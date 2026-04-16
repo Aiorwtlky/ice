@@ -218,6 +218,14 @@ export default function TeacherDashboard() {
 
   const hasError = error || data?.error;
   const students = studentsData?.students ?? [];
+  const filteredLogs = (logsData?.logs ?? []).filter((l) => {
+    const keyword = logSearch.trim().toLowerCase();
+    if (!keyword) return true;
+    const timeStr = fmtLogTime(l.createdAt).toLowerCase();
+    const detailStr = typeof l.detail === 'object' && l.detail !== null ? JSON.stringify(l.detail) : String(l.detail ?? '');
+    const hay = [timeStr, l.actionType, l.user?.account, l.gameModule?.code, l.gameModule?.name, detailStr].join(' ').toLowerCase();
+    return hay.includes(keyword);
+  });
 
   return (
     <div className="flex h-screen min-h-[480px] flex-col overflow-hidden bg-[#FDFBF7]">
@@ -664,42 +672,68 @@ export default function TeacherDashboard() {
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white">
-                  <div className="max-h-[420px] overflow-y-auto scroll-smooth overscroll-y-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]">
-                    <table className="w-full text-sm">
+                <div className="min-h-0 flex flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  <div className="border-b border-gray-100 px-3 py-2 text-xs text-gray-500">
+                    欄位過長可左右拖曳下方滑桿查看完整內容
+                  </div>
+                  <div className="hidden min-h-0 flex-1 overflow-y-auto overflow-x-auto scroll-smooth overscroll-y-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] md:block">
+                    <table className="w-full min-w-[980px] text-sm">
                       <thead className="sticky top-0 bg-gray-50">
                         <tr className="border-b text-left">
-                          <th className="p-3">時間(含毫秒)</th>
-                          <th className="p-3">學員</th>
-                          <th className="p-3">Action</th>
-                          <th className="p-3">遊戲</th>
-                          <th className="p-3">Detail</th>
+                          <th className="w-[190px] p-3">時間(含毫秒)</th>
+                          <th className="w-[120px] p-3">學員</th>
+                          <th className="w-[180px] p-3">Action</th>
+                          <th className="w-[180px] p-3">遊戲</th>
+                          <th className="min-w-[360px] p-3">Detail</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {(logsData?.logs ?? [])
-                          .filter((l) => {
-                            const t = logSearch.trim().toLowerCase();
-                            if (!t) return true;
-                            const timeStr = fmtLogTime(l.createdAt).toLowerCase();
-                            const detailStr =
-                              typeof l.detail === 'object' && l.detail !== null ? JSON.stringify(l.detail) : String(l.detail ?? '');
-                            const hay = [timeStr, l.actionType, l.user?.account, l.gameModule?.code, l.gameModule?.name, detailStr]
-                              .join(' ')
-                              .toLowerCase();
-                            return hay.includes(t);
-                          })
-                          .map((log) => (
+                        {filteredLogs.map((log) => (
                             <tr key={log.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                              <td className="p-3 text-gray-700 whitespace-nowrap">{fmtLogTime(log.createdAt)}</td>
-                              <td className="p-3">{log.user?.account ?? '—'}</td>
-                              <td className="p-3 font-medium">{log.actionType}</td>
-                              <td className="p-3">{log.gameModule?.code ?? '—'}</td>
-                              <td className="p-3 max-w-xs truncate" title={typeof log.detail === 'object' ? JSON.stringify(log.detail) : String(log.detail)}>{typeof log.detail === 'object' ? JSON.stringify(log.detail) : String(log.detail ?? '')}</td>
+                              <td className="w-[190px] p-3 text-gray-700 whitespace-nowrap">{fmtLogTime(log.createdAt)}</td>
+                              <td className="w-[120px] p-3">{log.user?.account ?? '—'}</td>
+                              <td className="w-[180px] p-3 font-medium">{log.actionType}</td>
+                              <td className="w-[180px] p-3">{log.gameModule?.code ?? '—'}</td>
+                              <td
+                                className="min-w-[360px] p-3 font-mono text-xs leading-5 text-gray-700 whitespace-pre-wrap break-words"
+                                title={typeof log.detail === 'object' ? JSON.stringify(log.detail) : String(log.detail)}
+                              >
+                                {typeof log.detail === 'object' ? JSON.stringify(log.detail) : String(log.detail ?? '')}
+                              </td>
                             </tr>
                           ))}
+                        {filteredLogs.length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="p-6 text-center text-sm text-gray-500">
+                              查無符合條件的歷程資料
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-gray-100 md:hidden">
+                    {filteredLogs.map((log) => (
+                      <article key={log.id} className="space-y-2 px-3 py-3">
+                        <div className="text-[12px] text-gray-500">{fmtLogTime(log.createdAt)}</div>
+                        <div className="grid grid-cols-[56px_1fr] gap-x-2 gap-y-1 text-sm">
+                          <span className="text-gray-500">學員</span>
+                          <span className="font-semibold text-gray-900 break-words">{log.user?.account ?? '—'}</span>
+                          <span className="text-gray-500">Action</span>
+                          <span className="font-medium text-gray-900 break-words">{log.actionType}</span>
+                          <span className="text-gray-500">遊戲</span>
+                          <span className="text-gray-800 break-words">{log.gameModule?.code ?? '—'}</span>
+                        </div>
+                        <details className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                          <summary className="cursor-pointer text-xs font-semibold text-gray-700">查看 Detail</summary>
+                          <pre className="mt-2 overflow-x-auto text-xs leading-5 text-gray-700 whitespace-pre-wrap break-words">
+                            {typeof log.detail === 'object' ? JSON.stringify(log.detail, null, 2) : String(log.detail ?? '')}
+                          </pre>
+                        </details>
+                      </article>
+                    ))}
+                    {filteredLogs.length === 0 && <div className="p-6 text-center text-sm text-gray-500">查無符合條件的歷程資料</div>}
                   </div>
                 </div>
               </>

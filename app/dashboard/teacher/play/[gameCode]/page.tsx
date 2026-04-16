@@ -8,6 +8,11 @@ import { HanoiGame, Click1Game, Click2Game, MonsterGobblerGame, BubbleTeaMasterG
 import SearchChallengeGame from '@/components/games/SearchChallengeGame';
 import SortBubbleGame from '@/components/games/SortBubbleGame';
 import PathDijkstraGame from '@/components/games/PathDijkstraGame';
+import AlgoLabLinearSearchGame from '@/components/games/AlgoLabLinearSearchGame';
+import AlgoLabBubbleSortGame from '@/components/games/AlgoLabBubbleSortGame';
+import AlgoLabBinarySearchGame from '@/components/games/AlgoLabBinarySearchGame';
+import AlgoLabDataDetectiveGame from '@/components/games/AlgoLabDataDetectiveGame';
+import AlgoLabSpreadsheetSortGame from '@/components/games/AlgoLabSpreadsheetSortGame';
 import { TeachingStack, TeachingQueue, TeachingHanoiRecursive, TeachingModuleShell } from '@/components/teaching';
 import FormActivityPlayer from '@/components/forms/FormActivityPlayer';
 import {
@@ -105,6 +110,41 @@ const PATH_GAME_CONFIG: Record<string, { guideEnabled: boolean; helpTip: string;
     guideEnabled: true,
     helpTip: '最短路徑（有提示）',
     helpText: '提示區會顯示下一個建議選擇節點。',
+  },
+};
+
+const ALGO_LAB_CONFIG: Record<
+  string,
+  {
+    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB';
+    helpTip: string;
+    helpText: string;
+  }
+> = {
+  ALGO_LAB_LINEAR: {
+    kind: 'LINEAR_LAB',
+    helpTip: '實驗一：線性搜尋',
+    helpText: '逐格翻開資料盒，觀察資料量增加時步數如何上升。',
+  },
+  ALGO_LAB_BUBBLE: {
+    kind: 'BUBBLE_LAB',
+    helpTip: '實驗二：泡泡排序',
+    helpText: '透過高低柱狀圖做相鄰比較，感受排序成本。',
+  },
+  ALGO_LAB_BINARY: {
+    kind: 'BINARY_LAB',
+    helpTip: '實驗三：二分搜尋',
+    helpText: '每一步先點中位點，練習「砍一半」的策略。',
+  },
+  ALGO_LAB_DETECTIVE: {
+    kind: 'DETECTIVE_LAB',
+    helpTip: '實驗四：資料偵探',
+    helpText: '連續案件中完成篩選、排序與定位，建立完整流程思維。',
+  },
+  ALGO_LAB_SPREADSHEET: {
+    kind: 'SPREADSHEET_LAB',
+    helpTip: '實驗五：試算表正式排序',
+    helpText: '使用雙層排序規則完成任務，體驗 Excel 式資料處理流程。',
   },
 };
 
@@ -687,6 +727,26 @@ function TeacherPlayPageInner() {
           <PathDijkstraGame guideEnabled={PATH_GAME_CONFIG[gameCode].guideEnabled} previewMode />
         </GameFrame>
       )}
+      {ALGO_LAB_CONFIG[gameCode] && (
+        <GameFrame
+          headerTitle={headerTitle}
+          userLabel={`示範 · ${user?.account ?? ''}`}
+          userAvatar={abbr}
+          onBack={handleBack}
+          onLogout={handleLogout}
+          onHelp={() => {
+            alert(ALGO_LAB_CONFIG[gameCode].helpText);
+          }}
+          helpTip={ALGO_LAB_CONFIG[gameCode].helpTip}
+          mainLayout="fill"
+        >
+          {ALGO_LAB_CONFIG[gameCode].kind === 'LINEAR_LAB' && <AlgoLabLinearSearchGame previewMode />}
+          {ALGO_LAB_CONFIG[gameCode].kind === 'BUBBLE_LAB' && <AlgoLabBubbleSortGame previewMode />}
+          {ALGO_LAB_CONFIG[gameCode].kind === 'BINARY_LAB' && <AlgoLabBinarySearchGame previewMode />}
+          {ALGO_LAB_CONFIG[gameCode].kind === 'DETECTIVE_LAB' && <AlgoLabDataDetectiveGame previewMode />}
+          {ALGO_LAB_CONFIG[gameCode].kind === 'SPREADSHEET_LAB' && <AlgoLabSpreadsheetSortGame previewMode />}
+        </GameFrame>
+      )}
       {![
         'CLICK_1',
         'CLICK_2',
@@ -713,6 +773,11 @@ function TeacherPlayPageInner() {
         'SORT_BUBBLE_GUIDE',
         'PATH_DIJKSTRA_RAW',
         'PATH_DIJKSTRA_GUIDE',
+        'ALGO_LAB_LINEAR',
+        'ALGO_LAB_BUBBLE',
+        'ALGO_LAB_BINARY',
+        'ALGO_LAB_DETECTIVE',
+        'ALGO_LAB_SPREADSHEET',
       ].includes(gameCode) && !gameCode.startsWith('FORM_') && (
         <GameFrame headerTitle={headerTitle} userLabel="老師示範" userAvatar={abbr} onBack={handleBack} onLogout={handleLogout}>
           <div className="flex h-full items-center justify-center p-6 text-gray-600">此活動尚無示範畫面</div>

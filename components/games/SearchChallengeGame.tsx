@@ -142,8 +142,8 @@ export default function SearchChallengeGame({
   const binaryFormula = `(${lowerBound} + ${upperBound}) ÷ 2 = ${recommendedGuess}`;
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-3 p-2 sm:p-4 lg:grid lg:grid-cols-[1.3fr_1fr] lg:gap-4">
-      <section className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm sm:p-5 lg:rounded-3xl lg:p-6">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col gap-3 overflow-y-auto p-2 sm:p-4 lg:grid lg:grid-cols-[1.3fr_1fr] lg:gap-4">
+      <section className="flex min-h-0 flex-col rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm sm:p-5 lg:rounded-3xl lg:p-6">
         <h2 className="text-xl font-black text-gray-900 sm:text-2xl">{modeLabel}：猜數字挑戰</h2>
         <p className="mt-2 text-sm leading-6 text-gray-600">
           請在 <span className="font-bold text-amber-700">{rangeMin}</span> 到{' '}
@@ -238,7 +238,7 @@ export default function SearchChallengeGame({
         </div>
       </section>
 
-      <aside className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm sm:p-5 lg:rounded-3xl lg:p-6">
+      <aside className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-sm sm:p-5 lg:min-h-0 lg:overflow-y-auto lg:rounded-3xl lg:p-6">
         <h3 className="text-base font-black text-gray-900 sm:text-lg">教學說明</h3>
         <div className="mt-3 space-y-3">
           <label className="flex items-center gap-2 text-sm text-gray-700">

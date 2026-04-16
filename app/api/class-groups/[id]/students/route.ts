@@ -3,6 +3,7 @@ import { PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { accountLookupKey, normalizeAccountInput } from '@/lib/account-normalize';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = new TextEncoder().encode(
@@ -85,8 +86,17 @@ export async function POST(
     if (!account || typeof account !== 'string') {
       return NextResponse.json({ error: '請提供 account' }, { status: 400 });
     }
-
-    const existing = await prisma.user.findUnique({ where: { account: account.trim() } });
+    const normalizedAccount = normalizeAccountInput(account);
+    const lookupKey = accountLookupKey(normalizedAccount);
+    const looseMatched = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT "id"
+      FROM "users"
+      WHERE REPLACE(UPPER("account"), '-', '') = ${lookupKey}
+      LIMIT 1
+    `;
+    const existing = looseMatched[0]
+      ? await prisma.user.findUnique({ where: { id: looseMatched[0].id } })
+      : null;
     if (existing) {
       if (existing.role !== 'STUDENT') {
         return NextResponse.json({ error: '該帳號不是學員' }, { status: 400 });
@@ -108,7 +118,7 @@ export async function POST(
     const displayName = typeof name === 'string' && name.trim() ? name.trim() : null;
     const created = await prisma.user.create({
       data: {
-        account: account.trim(),
+        account: normalizedAccount,
         name: displayName,
         role: UserRole.STUDENT,
         schoolCode: group.schoolCode,

@@ -3,6 +3,7 @@ import { PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { accountLookupKey, normalizeAccountInput } from '@/lib/account-normalize';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = new TextEncoder().encode(
@@ -47,19 +48,24 @@ export async function POST(
 
     const body = await request.json();
     const count = Math.min(Math.max(Number(body.count) || 1, 1), 100);
-    const prefix = body.prefix ?? group.schoolCode;
+    const prefix = normalizeAccountInput(String(body.prefix ?? group.schoolCode));
     const startFrom = Number(body.startFrom) || 1;
     const defaultPassword = body.defaultPassword ?? '88'; // 預設密碼：可傳 "88" 表示 8801,8802… 或固定字串
 
     const created: { account: string; password: string }[] = [];
     for (let i = 0; i < count; i++) {
       const num = startFrom + i;
-      const account = `${prefix}-${String(num).padStart(2, '0')}`;
+      const account = normalizeAccountInput(`${prefix}-${String(num).padStart(2, '0')}`);
       const password = /^\d+$/.test(String(defaultPassword))
         ? defaultPassword + String(num).padStart(2, '0')
         : String(defaultPassword);
-      const exists = await prisma.user.findUnique({ where: { account } });
-      if (exists) continue;
+      const existsByLoose = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT "id"
+        FROM "users"
+        WHERE REPLACE(UPPER("account"), '-', '') = ${accountLookupKey(account)}
+        LIMIT 1
+      `;
+      if (existsByLoose[0]) continue;
       const passwordHash = await bcrypt.hash(password, 10);
       await prisma.user.create({
         data: {

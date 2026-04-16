@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { accountLookupKey, normalizeAccountInput } from '@/lib/account-normalize';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key-change-in-production');
@@ -55,7 +56,7 @@ export async function GET(
       select: { schoolCode: true },
     });
     if (!group) return NextResponse.json({ error: '找不到班級' }, { status: 404 });
-    const schoolCode = group.schoolCode;
+    const schoolCode = normalizeAccountInput(group.schoolCode);
     const prefix = `${schoolCode}-`;
 
     const students = await prisma.user.findMany({
@@ -68,13 +69,18 @@ export async function GET(
     // 避免跳號已存在：往上找第一個沒被占用的
     // (查全部 users，不只本班)
     while (true) {
-      const account = `${prefix}${String(nextNum).padStart(2, '0')}`;
-      const exists = await prisma.user.findUnique({ where: { account }, select: { id: true } });
-      if (!exists) break;
+      const account = normalizeAccountInput(`${prefix}${String(nextNum).padStart(2, '0')}`);
+      const existsByLoose = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT "id"
+        FROM "users"
+        WHERE REPLACE(UPPER("account"), '-', '') = ${accountLookupKey(account)}
+        LIMIT 1
+      `;
+      if (!existsByLoose[0]) break;
       nextNum += 1;
     }
 
-    const account = `${prefix}${String(nextNum).padStart(2, '0')}`;
+    const account = normalizeAccountInput(`${prefix}${String(nextNum).padStart(2, '0')}`);
     const password = `88${String(nextNum).padStart(2, '0')}`;
     return NextResponse.json({ account, password, number: nextNum });
   } catch (e) {

@@ -8,6 +8,11 @@ import { HanoiGame, Click1Game, Click2Game, MonsterGobblerGame, BubbleTeaMasterG
 import SearchChallengeGame from '@/components/games/SearchChallengeGame';
 import SortBubbleGame from '@/components/games/SortBubbleGame';
 import PathDijkstraGame from '@/components/games/PathDijkstraGame';
+import AlgoLabLinearSearchGame from '@/components/games/AlgoLabLinearSearchGame';
+import AlgoLabBubbleSortGame from '@/components/games/AlgoLabBubbleSortGame';
+import AlgoLabBinarySearchGame from '@/components/games/AlgoLabBinarySearchGame';
+import AlgoLabDataDetectiveGame from '@/components/games/AlgoLabDataDetectiveGame';
+import AlgoLabSpreadsheetSortGame from '@/components/games/AlgoLabSpreadsheetSortGame';
 import { TeachingStack, TeachingQueue, TeachingHanoiRecursive, TeachingModuleShell } from '@/components/teaching';
 import FormActivityPlayer from '@/components/forms/FormActivityPlayer';
 import { useGameLog } from '@/hooks/useGameLog';
@@ -120,12 +125,52 @@ const PATH_GAME_CONFIG: Record<string, { guideEnabled: boolean; helpTip: string;
   },
 };
 
+const ALGO_LAB_CONFIG: Record<
+  string,
+  {
+    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB';
+    helpTip: string;
+    helpText: string;
+  }
+> = {
+  ALGO_LAB_LINEAR: {
+    kind: 'LINEAR_LAB',
+    helpTip: '實驗一：線性搜尋',
+    helpText: '逐格翻開資料盒，觀察資料量增加時步數如何上升。',
+  },
+  ALGO_LAB_BUBBLE: {
+    kind: 'BUBBLE_LAB',
+    helpTip: '實驗二：泡泡排序',
+    helpText: '透過高低柱狀圖做相鄰比較，感受排序成本。',
+  },
+  ALGO_LAB_BINARY: {
+    kind: 'BINARY_LAB',
+    helpTip: '實驗三：二分搜尋',
+    helpText: '每一步先點中位點，練習「砍一半」的策略。',
+  },
+  ALGO_LAB_DETECTIVE: {
+    kind: 'DETECTIVE_LAB',
+    helpTip: '實驗四：資料偵探',
+    helpText: '連續案件中完成篩選、排序與定位，建立完整流程思維。',
+  },
+  ALGO_LAB_SPREADSHEET: {
+    kind: 'SPREADSHEET_LAB',
+    helpTip: '實驗五：試算表正式排序',
+    helpText: '使用雙層排序規則完成任務，體驗 Excel 式資料處理流程。',
+  },
+};
+
 export default function StudentGamePage() {
   const params = useParams();
   const router = useRouter();
   const gameCode = typeof params.gameCode === 'string' ? params.gameCode : '';
   const [user, setUser] = useState<{ account: string; studentGroup?: { activeTerm?: { name: string } } } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [gameRunKey, setGameRunKey] = useState(0);
+  const [completionModal, setCompletionModal] = useState<{
+    title: string;
+    lines: string[];
+  } | null>(null);
 
   const { data: statusData } = useSWR<StatusData & { error?: string }>('/api/games/status', fetcher);
   const unlock = statusData?.unlocks?.find((u) => u.gameCode === gameCode);
@@ -135,7 +180,8 @@ export default function StudentGamePage() {
   const searchConfig = SEARCH_GAME_CONFIG[gameCode];
   const sortConfig = SORT_GAME_CONFIG[gameCode];
   const pathConfig = PATH_GAME_CONFIG[gameCode];
-  const isSummaryOnlyGame = Boolean(searchConfig || sortConfig || pathConfig);
+  const algoLabConfig = ALGO_LAB_CONFIG[gameCode];
+  const isSummaryOnlyGame = Boolean(searchConfig || sortConfig || pathConfig || algoLabConfig);
 
   const { sendLog } = useGameLog(gameModuleId, sessionId, !isSummaryOnlyGame);
 
@@ -173,6 +219,7 @@ export default function StudentGamePage() {
 
   const handleBack = () => {
     if (!isSummaryOnlyGame) sendLog('BACK');
+    setCompletionModal(null);
     router.push('/dashboard/student');
   };
   const handleLogout = async () => {
@@ -206,6 +253,160 @@ export default function StudentGamePage() {
     });
   };
 
+  const openCompletionModal = (title: string, lines: string[]) => {
+    setCompletionModal({ title, lines });
+  };
+
+  const replayCurrentGame = () => {
+    setCompletionModal(null);
+    setGameRunKey((v) => v + 1);
+  };
+
+  const completionModalNode = completionModal ? (
+    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50 p-4" role="presentation">
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6" role="dialog" aria-modal="true">
+        <h3 className="text-lg font-black text-gray-900 sm:text-xl">{completionModal.title}</h3>
+        <ul className="mt-3 space-y-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
+          {completionModal.lines.map((line, idx) => (
+            <li key={`${line}-${idx}`}>{line}</li>
+          ))}
+        </ul>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 sm:w-auto sm:flex-1"
+          >
+            返回
+          </button>
+          <button
+            type="button"
+            onClick={replayCurrentGame}
+            className="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white sm:w-auto sm:flex-1"
+          >
+            再來一次
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const handleSearchComplete = async (payload: {
+    attempts: number;
+    durationMs: number;
+    mode: 'LINEAR' | 'BINARY';
+    rangeMax: number;
+  }) => {
+    await sendSearchCompleteLog(payload);
+    openCompletionModal('恭喜完成挑戰！', [
+      `模式：${payload.mode === 'BINARY' ? '二元搜尋' : '線性搜尋'}`,
+      `範圍上限：${payload.rangeMax}`,
+      `作答次數：${payload.attempts} 次`,
+    ]);
+  };
+
+  const sendAlgoLabCompleteLog = async (
+    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB',
+    timeDiffMs: number,
+    payload: Record<string, unknown>,
+  ) => {
+    if (!gameModuleId) return;
+    await fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'COMPLETE',
+        gameModuleId,
+        sessionId: sessionId || undefined,
+        isCorrect: true,
+        timeDiffMs,
+        payload: { kind, ...payload },
+      }),
+    });
+  };
+
+  const handleSortComplete = async (payload: { swaps: number; decisions: number; durationMs: number }) => {
+    if (!gameModuleId) return;
+    await fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'COMPLETE',
+        gameModuleId,
+        sessionId: sessionId || undefined,
+        isCorrect: true,
+        timeDiffMs: payload.durationMs,
+        payload: { kind: 'SORT_BUBBLE', swaps: payload.swaps, decisions: payload.decisions },
+      }),
+    });
+    openCompletionModal('恭喜完成排序任務！', [
+      `比較決策：${payload.decisions} 次`,
+      `交換次數：${payload.swaps} 次`,
+    ]);
+  };
+
+  const handlePathComplete = async (payload: { correctSteps: number; wrongChoices: number; durationMs: number }) => {
+    if (!gameModuleId) return;
+    await fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'COMPLETE',
+        gameModuleId,
+        sessionId: sessionId || undefined,
+        isCorrect: true,
+        timeDiffMs: payload.durationMs,
+        payload: { kind: 'PATH_DIJKSTRA', correctSteps: payload.correctSteps, wrongChoices: payload.wrongChoices },
+      }),
+    });
+    openCompletionModal('恭喜完成最短路徑！', [
+      `正確步數：${payload.correctSteps}`,
+      `錯誤選擇：${payload.wrongChoices}`,
+    ]);
+  };
+
+  const handleAlgoLabComplete = async (
+    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB',
+    timeDiffMs: number,
+    payload: Record<string, unknown>,
+  ) => {
+    await sendAlgoLabCompleteLog(kind, timeDiffMs, payload);
+    if (kind === 'LINEAR_LAB') {
+      openCompletionModal('恭喜完成實驗一！', [
+        `資料量：${String(payload.datasetSize ?? '-')}`,
+        `搜尋步數：${String(payload.attempts ?? '-')}`,
+      ]);
+      return;
+    }
+    if (kind === 'BUBBLE_LAB') {
+      openCompletionModal('恭喜完成實驗二！', [
+        `比較次數：${String(payload.comparisons ?? '-')}`,
+        `交換次數：${String(payload.swaps ?? '-')}`,
+      ]);
+      return;
+    }
+    if (kind === 'BINARY_LAB') {
+      openCompletionModal('恭喜完成實驗三！', [
+        `資料量：${String(payload.datasetSize ?? '-')}`,
+        `搜尋步數：${String(payload.attempts ?? '-')}`,
+      ]);
+      return;
+    }
+    if (kind === 'DETECTIVE_LAB') {
+      openCompletionModal('恭喜完成實驗四！', [
+        `完成案件：${String(payload.clearedCases ?? '-')}`,
+        `總操作數：${String(payload.totalActions ?? '-')}`,
+        `失誤次數：${String(payload.mistakes ?? '-')}`,
+      ]);
+      return;
+    }
+    openCompletionModal('恭喜完成實驗五！', [
+      `完成任務：${String(payload.missionsCleared ?? '-')}`,
+      `總操作數：${String(payload.totalActions ?? '-')}`,
+      `失誤次數：${String(payload.mistakes ?? '-')}`,
+    ]);
+  };
+
   if (searchConfig) {
     return (
       <GameFrame
@@ -222,12 +423,14 @@ export default function StudentGamePage() {
         mainLayout="fill"
       >
         <SearchChallengeGame
+          key={`search-${gameCode}-${gameRunKey}`}
           mode={searchConfig.mode}
           rangeMin={0}
           rangeMax={searchConfig.rangeMax}
           hintEnabled={searchConfig.hintEnabled}
-          onComplete={sendSearchCompleteLog}
+          onComplete={handleSearchComplete}
         />
+        {completionModalNode}
       </GameFrame>
     );
   }
@@ -248,23 +451,11 @@ export default function StudentGamePage() {
         mainLayout="fill"
       >
         <SortBubbleGame
+          key={`sort-${gameCode}-${gameRunKey}`}
           guideEnabled={sortConfig.guideEnabled}
-          onComplete={async ({ swaps, decisions, durationMs }) => {
-            if (!gameModuleId) return;
-            await fetch('/api/logs', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'COMPLETE',
-                gameModuleId,
-                sessionId: sessionId || undefined,
-                isCorrect: true,
-                timeDiffMs: durationMs,
-                payload: { kind: 'SORT_BUBBLE', swaps, decisions },
-              }),
-            });
-          }}
+          onComplete={handleSortComplete}
         />
+        {completionModalNode}
       </GameFrame>
     );
   }
@@ -285,23 +476,71 @@ export default function StudentGamePage() {
         mainLayout="fill"
       >
         <PathDijkstraGame
+          key={`path-${gameCode}-${gameRunKey}`}
           guideEnabled={pathConfig.guideEnabled}
-          onComplete={async ({ correctSteps, wrongChoices, durationMs }) => {
-            if (!gameModuleId) return;
-            await fetch('/api/logs', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'COMPLETE',
-                gameModuleId,
-                sessionId: sessionId || undefined,
-                isCorrect: true,
-                timeDiffMs: durationMs,
-                payload: { kind: 'PATH_DIJKSTRA', correctSteps, wrongChoices },
-              }),
-            });
-          }}
+          onComplete={handlePathComplete}
         />
+        {completionModalNode}
+      </GameFrame>
+    );
+  }
+
+  if (algoLabConfig) {
+    return (
+      <GameFrame
+        headerMenuLinks={headerMenuLinks}
+        headerTitle={headerTitle}
+        userLabel={user?.account}
+        userAvatar={user?.account?.slice(0, 2).toUpperCase()}
+        onBack={handleBack}
+        onLogout={handleLogout}
+        onHelp={() => {
+          alert(algoLabConfig.helpText);
+        }}
+        helpTip={algoLabConfig.helpTip}
+        mainLayout="fill"
+      >
+        {algoLabConfig.kind === 'LINEAR_LAB' && (
+          <AlgoLabLinearSearchGame
+            key={`algo-linear-${gameCode}-${gameRunKey}`}
+            onComplete={({ attempts, durationMs, datasetSize }) =>
+              handleAlgoLabComplete('LINEAR_LAB', durationMs, { attempts, datasetSize })
+            }
+          />
+        )}
+        {algoLabConfig.kind === 'BUBBLE_LAB' && (
+          <AlgoLabBubbleSortGame
+            key={`algo-bubble-${gameCode}-${gameRunKey}`}
+            onComplete={({ comparisons, swaps, durationMs }) =>
+              handleAlgoLabComplete('BUBBLE_LAB', durationMs, { comparisons, swaps })
+            }
+          />
+        )}
+        {algoLabConfig.kind === 'BINARY_LAB' && (
+          <AlgoLabBinarySearchGame
+            key={`algo-binary-${gameCode}-${gameRunKey}`}
+            onComplete={({ attempts, durationMs, datasetSize }) =>
+              handleAlgoLabComplete('BINARY_LAB', durationMs, { attempts, datasetSize })
+            }
+          />
+        )}
+        {algoLabConfig.kind === 'DETECTIVE_LAB' && (
+          <AlgoLabDataDetectiveGame
+            key={`algo-detective-${gameCode}-${gameRunKey}`}
+            onComplete={({ clearedCases, totalActions, mistakes, durationMs }) =>
+              handleAlgoLabComplete('DETECTIVE_LAB', durationMs, { clearedCases, totalActions, mistakes })
+            }
+          />
+        )}
+        {algoLabConfig.kind === 'SPREADSHEET_LAB' && (
+          <AlgoLabSpreadsheetSortGame
+            key={`algo-sheet-${gameCode}-${gameRunKey}`}
+            onComplete={({ missionsCleared, totalActions, mistakes, durationMs }) =>
+              handleAlgoLabComplete('SPREADSHEET_LAB', durationMs, { missionsCleared, totalActions, mistakes })
+            }
+          />
+        )}
+        {completionModalNode}
       </GameFrame>
     );
   }
