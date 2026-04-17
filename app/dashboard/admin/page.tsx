@@ -198,6 +198,7 @@ async function ensure418Modules(
   const modules = [
     { code: 'ALGO_LAB_LINEAR', name: '實驗一：搜尋的苦勞（線性搜尋）', description: '翻牌互動，觀察 O(N) 搜尋成本。' },
     { code: 'ALGO_LAB_BUBBLE', name: '實驗二：建立秩序（泡泡排序）', description: '柱狀圖互動交換，理解 O(N^2) 排序代價。' },
+    { code: 'ALGO_LAB_BUBBLE_FREE', name: '實驗二之零：自由交換（排序練習）', description: '自由選兩柱交換，比較你的步數與最佳步數。' },
     { code: 'ALGO_LAB_BINARY', name: '實驗三：切一半的神蹟（二分搜尋）', description: '中位點互動排除，理解 O(logN) 搜尋效率。' },
     { code: 'ALGO_LAB_DETECTIVE', name: '實驗四：資料偵探（綜合任務）', description: '多案例完成篩選、排序、定位的完整流程。' },
     { code: 'ALGO_LAB_SPREADSHEET', name: '實驗五：試算表正式排序（進階）', description: 'Excel 風格雙層排序流程，完成正式資料定位任務。' },

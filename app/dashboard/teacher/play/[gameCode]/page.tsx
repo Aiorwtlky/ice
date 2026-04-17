@@ -10,6 +10,7 @@ import SortBubbleGame from '@/components/games/SortBubbleGame';
 import PathDijkstraGame from '@/components/games/PathDijkstraGame';
 import AlgoLabLinearSearchGame from '@/components/games/AlgoLabLinearSearchGame';
 import AlgoLabBubbleSortGame from '@/components/games/AlgoLabBubbleSortGame';
+import AlgoLabBubbleSortFreeSwapGame from '@/components/games/AlgoLabBubbleSortFreeSwapGame';
 import AlgoLabBinarySearchGame from '@/components/games/AlgoLabBinarySearchGame';
 import AlgoLabDataDetectiveGame from '@/components/games/AlgoLabDataDetectiveGame';
 import AlgoLabSpreadsheetSortGame from '@/components/games/AlgoLabSpreadsheetSortGame';
@@ -116,7 +117,7 @@ const PATH_GAME_CONFIG: Record<string, { guideEnabled: boolean; helpTip: string;
 const ALGO_LAB_CONFIG: Record<
   string,
   {
-    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB';
+    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BUBBLE_FREE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB';
     helpTip: string;
     helpText: string;
   }
@@ -130,6 +131,11 @@ const ALGO_LAB_CONFIG: Record<
     kind: 'BUBBLE_LAB',
     helpTip: '實驗二：泡泡排序',
     helpText: '透過高低柱狀圖做相鄰比較，感受排序成本。',
+  },
+  ALGO_LAB_BUBBLE_FREE: {
+    kind: 'BUBBLE_FREE_LAB',
+    helpTip: '實驗二之零：自由交換',
+    helpText: '自由選兩根柱子交換，試著用更少步數完成排序。',
   },
   ALGO_LAB_BINARY: {
     kind: 'BINARY_LAB',
@@ -742,6 +748,7 @@ function TeacherPlayPageInner() {
         >
           {ALGO_LAB_CONFIG[gameCode].kind === 'LINEAR_LAB' && <AlgoLabLinearSearchGame previewMode />}
           {ALGO_LAB_CONFIG[gameCode].kind === 'BUBBLE_LAB' && <AlgoLabBubbleSortGame previewMode />}
+          {ALGO_LAB_CONFIG[gameCode].kind === 'BUBBLE_FREE_LAB' && <AlgoLabBubbleSortFreeSwapGame previewMode />}
           {ALGO_LAB_CONFIG[gameCode].kind === 'BINARY_LAB' && <AlgoLabBinarySearchGame previewMode />}
           {ALGO_LAB_CONFIG[gameCode].kind === 'DETECTIVE_LAB' && <AlgoLabDataDetectiveGame previewMode />}
           {ALGO_LAB_CONFIG[gameCode].kind === 'SPREADSHEET_LAB' && <AlgoLabSpreadsheetSortGame previewMode />}

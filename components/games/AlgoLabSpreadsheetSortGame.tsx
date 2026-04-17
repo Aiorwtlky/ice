@@ -33,7 +33,29 @@ interface Mission {
 }
 
 const COLOR_OPTIONS: ColorTag[] = ['藍色', '綠色', '紅色', '黃色'];
-const NAME_POOL = ['小安', '小語', '小晴', '小辰', '小樂', '小恩', '小宇', '小海', '小米', '小白', '小彤', '小志'];
+const FAMILY_NAMES = ['陳', '林', '黃', '張', '李', '王', '吳', '劉', '蔡', '楊', '許', '鄭', '謝', '郭', '洪', '邱', '曾', '廖'];
+const GIVEN_NAMES = [
+  '家豪',
+  '怡君',
+  '子晴',
+  '承翰',
+  '品妤',
+  '宇辰',
+  '思妤',
+  '冠宇',
+  '沛恩',
+  '語彤',
+  '柏翰',
+  '書妍',
+  '宥翔',
+  '欣妤',
+  '昱廷',
+  '庭瑄',
+  '哲宇',
+  '宥妍',
+  '品潔',
+  '宸希',
+];
 
 const SORT_LABEL: Record<SortKey, string> = {
   seat: '座號',
@@ -47,6 +69,15 @@ const SORT_KEYS: SortKey[] = ['seat', 'name', 'color', 'height', 'score'];
 
 function randomFrom<T>(arr: T[]) {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function shuffle<T>(arr: T[]) {
+  const next = [...arr];
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
 }
 
 function compareValues(a: StudentRow, b: StudentRow, key: SortKey, direction: SortDirection) {
@@ -68,24 +99,62 @@ function applyRules(rows: StudentRow[], rules: SortRule[]) {
   });
 }
 
+function hasUniqueFirst(rows: StudentRow[], rules: SortRule[]) {
+  const sorted = applyRules(rows, rules);
+  const first = sorted[0];
+  const second = sorted[1];
+  if (!first) return false;
+  if (!second) return true;
+  // 如果第一與第二在所有規則上都完全平手，就代表「第一名不唯一」
+  return rules.some((rule) => compareValues(first, second, rule.key, rule.direction) !== 0);
+}
+
 function createRows() {
-  return Array.from({ length: 20 }, (_, i) => ({
-    id: `R-${i + 1}`,
-    seat: i + 1,
-    name: `${NAME_POOL[i % NAME_POOL.length]}${i + 1}`,
-    color: randomFrom(COLOR_OPTIONS),
-    height: 128 + Math.floor(Math.random() * 28),
-    score: 60 + Math.floor(Math.random() * 41),
-  }));
+  const seats = shuffle(Array.from({ length: 45 }, (_, i) => i + 1)).slice(0, 20);
+  const used = new Set<string>();
+  // 硬保證：四種顏色一定都會出現，避免任務挑到不存在的顏色
+  const fixedColors: ColorTag[] = shuffle([...COLOR_OPTIONS]);
+  const rows = Array.from({ length: 20 }, (_, i) => {
+    let name = '';
+    for (let t = 0; t < 30; t += 1) {
+      name = `${randomFrom(FAMILY_NAMES)}${randomFrom(GIVEN_NAMES)}`;
+      if (!used.has(name)) break;
+    }
+    used.add(name);
+    return {
+      id: `R-${i + 1}`,
+      seat: seats[i],
+      name,
+      color: i < fixedColors.length ? fixedColors[i] : randomFrom(COLOR_OPTIONS),
+      height: 128 + Math.floor(Math.random() * 28),
+      score: 60 + Math.floor(Math.random() * 41),
+    };
+  });
+  return shuffle(rows);
 }
 
 function createMissions(rows: StudentRow[]): Mission[] {
-  const colorA = randomFrom(COLOR_OPTIONS);
-  const colorB = randomFrom(COLOR_OPTIONS.filter((c) => c !== colorA));
+  const presentColors = Array.from(new Set(rows.map((r) => r.color))) as ColorTag[];
+  const availableColors = presentColors.length > 0 ? presentColors : COLOR_OPTIONS;
+
+  // 任務 1：挑一個顏色，保證「該顏色中最矮者」唯一
+  let colorA = randomFrom(availableColors);
+  for (let t = 0; t < 24; t += 1) {
+    const pick = randomFrom(availableColors);
+    const list = rows.filter((r) => r.color === pick);
+    if (list.length < 2) continue;
+    const minH = Math.min(...list.map((r) => r.height));
+    const countMin = list.filter((r) => r.height === minH).length;
+    if (countMin === 1) {
+      colorA = pick;
+      break;
+    }
+  }
+
   const missions: Mission[] = [
     {
       title: '任務 1 / 3',
-      description: `請建立規則讓「${colorA} 衣服中最矮者」會出現在最前段，並點出該列。`,
+      description: `請建立規則，找出「${colorA} 衣服中最矮者」，並點出該列。`,
       requiredRules: [{ key: 'color', direction: 'asc' }, { key: 'height', direction: 'asc' }],
       getTargetId: (sortedRows) => sortedRows.find((row) => row.color === colorA)?.id ?? null,
     },
@@ -101,16 +170,22 @@ function createMissions(rows: StudentRow[]): Mission[] {
     },
     {
       title: '任務 3 / 3',
-      description: `請建立規則使「身高高優先、同身高分數高優先；若仍同分，${colorB} 要更前面」。`,
+      description: '請建立規則使「身高高優先；同身高分數高優先」後的第一位被正確定位。',
       requiredRules: [
         { key: 'height', direction: 'desc' },
         { key: 'score', direction: 'desc' },
-        { key: 'color', direction: 'asc' },
       ],
-      getTargetId: (sortedRows) => sortedRows.find((row) => row.color === colorB)?.id ?? null,
+      getTargetId: (sortedRows) => sortedRows[0]?.id ?? null,
     },
   ];
-  return missions.filter((mission) => mission.getTargetId(applyRules(rows, mission.requiredRules)) !== null);
+  // 硬保證：每題都要有「唯一第一名」可點（依該題 requiredRules 判斷）
+  return missions.filter((mission) => {
+    const sorted = applyRules(rows, mission.requiredRules);
+    const target = mission.getTargetId(sorted);
+    if (!target) return false;
+    if (mission.getTargetId === missions[0]?.getTargetId) return true;
+    return hasUniqueFirst(rows, mission.requiredRules);
+  });
 }
 
 function sameRules(a: SortRule[], b: SortRule[]) {
@@ -258,55 +333,62 @@ export default function AlgoLabSpreadsheetSortGame({ previewMode = false, onComp
           </div>
         </div>
 
-        <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 sm:text-sm">
-          <span className="font-bold text-gray-900">{currentMission.title}</span>：{currentMission.description}
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900 sm:text-base">
+          <span className="font-black">{currentMission.title}</span>：{currentMission.description}
         </div>
 
-        <div className="mt-3 max-h-[min(42vh,20rem)] space-y-2 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-3">
-          {rules.map((rule, idx) => (
-            <div key={`rule-${idx}-${rule.key}-${rule.direction}`} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-bold text-gray-700">{idx === 0 ? '主要排序' : `第 ${idx + 1} 排序`}</p>
-                <button
-                  type="button"
-                  onClick={() => removeRule(idx)}
-                  disabled={rules.length <= 1}
-                  className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-bold text-gray-600 disabled:opacity-50"
-                >
-                  移除
-                </button>
+        <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-sm font-black text-gray-900">排序規則</p>
+            <button
+              type="button"
+              onClick={addRule}
+              disabled={phase === 'done' || rules.length >= 4}
+              className="rounded-xl border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700 disabled:opacity-50"
+            >
+              新增一層（最多 4 層）
+            </button>
+          </div>
+          <div className="max-h-[38vh] space-y-2 overflow-y-auto pr-1 sm:max-h-[220px]">
+            {rules.map((rule, idx) => (
+              <div key={`rule-${idx}-${rule.key}-${rule.direction}`} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-gray-700">{idx === 0 ? '主要排序' : idx === 1 ? '次要排序' : `第 ${idx + 1} 層`}</p>
+                  <button
+                    type="button"
+                    onClick={() => removeRule(idx)}
+                    disabled={phase === 'done' || rules.length <= 1}
+                    className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-bold text-gray-600 disabled:opacity-50"
+                  >
+                    移除
+                  </button>
+                </div>
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <select
+                    value={rule.key}
+                    onChange={(e) => handleRuleChange(idx, { key: e.target.value as SortKey })}
+                    disabled={phase === 'done'}
+                    className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 disabled:opacity-60 sm:text-sm"
+                  >
+                    {SORT_KEYS.map((key) => (
+                      <option key={key} value={key}>
+                        {SORT_LABEL[key]}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={rule.direction}
+                    onChange={(e) => handleRuleChange(idx, { direction: e.target.value as SortDirection })}
+                    disabled={phase === 'done'}
+                    className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 disabled:opacity-60 sm:text-sm"
+                  >
+                    <option value="asc">由小到大</option>
+                    <option value="desc">由大到小</option>
+                  </select>
+                </div>
               </div>
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <select
-                  value={rule.key}
-                  onChange={(e) => handleRuleChange(idx, { key: e.target.value as SortKey })}
-                  className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 sm:text-sm"
-                >
-                  {SORT_KEYS.map((key) => (
-                    <option key={key} value={key}>
-                      {SORT_LABEL[key]}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={rule.direction}
-                  onChange={(e) => handleRuleChange(idx, { direction: e.target.value as SortDirection })}
-                  className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 sm:text-sm"
-                >
-                  <option value="asc">升冪</option>
-                  <option value="desc">降冪</option>
-                </select>
-              </div>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={addRule}
-            disabled={rules.length >= 4}
-            className="w-full rounded-xl border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 disabled:opacity-50 sm:text-sm"
-          >
-            新增排序層級（最多 4 層）
-          </button>
+            ))}
+          </div>
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -314,14 +396,14 @@ export default function AlgoLabSpreadsheetSortGame({ previewMode = false, onComp
             type="button"
             onClick={applySort}
             disabled={phase === 'done'}
-            className="rounded-xl bg-indigo-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-50 sm:text-sm"
+            className="flex-1 rounded-xl bg-indigo-500 px-4 py-2 text-sm font-black text-white disabled:opacity-50 sm:flex-none"
           >
             套用排序
           </button>
           <button
             type="button"
             onClick={resetGame}
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 sm:text-sm"
+            className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 sm:flex-none"
           >
             重置資料
           </button>
@@ -360,7 +442,7 @@ export default function AlgoLabSpreadsheetSortGame({ previewMode = false, onComp
           </table>
         </div>
 
-        <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 sm:text-sm">
+        <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-900 sm:text-base">
           {message}
         </div>
       </section>

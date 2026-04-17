@@ -10,6 +10,7 @@ import SortBubbleGame from '@/components/games/SortBubbleGame';
 import PathDijkstraGame from '@/components/games/PathDijkstraGame';
 import AlgoLabLinearSearchGame from '@/components/games/AlgoLabLinearSearchGame';
 import AlgoLabBubbleSortGame from '@/components/games/AlgoLabBubbleSortGame';
+import AlgoLabBubbleSortFreeSwapGame from '@/components/games/AlgoLabBubbleSortFreeSwapGame';
 import AlgoLabBinarySearchGame from '@/components/games/AlgoLabBinarySearchGame';
 import AlgoLabDataDetectiveGame from '@/components/games/AlgoLabDataDetectiveGame';
 import AlgoLabSpreadsheetSortGame from '@/components/games/AlgoLabSpreadsheetSortGame';
@@ -128,7 +129,7 @@ const PATH_GAME_CONFIG: Record<string, { guideEnabled: boolean; helpTip: string;
 const ALGO_LAB_CONFIG: Record<
   string,
   {
-    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB';
+    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BUBBLE_FREE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB';
     helpTip: string;
     helpText: string;
   }
@@ -142,6 +143,11 @@ const ALGO_LAB_CONFIG: Record<
     kind: 'BUBBLE_LAB',
     helpTip: '實驗二：泡泡排序',
     helpText: '透過高低柱狀圖做相鄰比較，感受排序成本。',
+  },
+  ALGO_LAB_BUBBLE_FREE: {
+    kind: 'BUBBLE_FREE_LAB',
+    helpTip: '實驗二之零：自由交換',
+    helpText: '自由選兩根柱子交換，試著用更少步數完成排序。',
   },
   ALGO_LAB_BINARY: {
     kind: 'BINARY_LAB',
@@ -306,7 +312,7 @@ export default function StudentGamePage() {
   };
 
   const sendAlgoLabCompleteLog = async (
-    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB',
+    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BUBBLE_FREE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB',
     timeDiffMs: number,
     payload: Record<string, unknown>,
   ) => {
@@ -366,7 +372,7 @@ export default function StudentGamePage() {
   };
 
   const handleAlgoLabComplete = async (
-    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB',
+    kind: 'LINEAR_LAB' | 'BUBBLE_LAB' | 'BUBBLE_FREE_LAB' | 'BINARY_LAB' | 'DETECTIVE_LAB' | 'SPREADSHEET_LAB',
     timeDiffMs: number,
     payload: Record<string, unknown>,
   ) => {
@@ -382,6 +388,13 @@ export default function StudentGamePage() {
       openCompletionModal('恭喜完成實驗二！', [
         `比較次數：${String(payload.comparisons ?? '-')}`,
         `交換次數：${String(payload.swaps ?? '-')}`,
+      ]);
+      return;
+    }
+    if (kind === 'BUBBLE_FREE_LAB') {
+      openCompletionModal('恭喜完成實驗二之零！', [
+        `你的步數：${String(payload.swaps ?? '-')}`,
+        `最佳步數：${String(payload.bestSwaps ?? '-')}`,
       ]);
       return;
     }
@@ -513,6 +526,14 @@ export default function StudentGamePage() {
             key={`algo-bubble-${gameCode}-${gameRunKey}`}
             onComplete={({ comparisons, swaps, durationMs }) =>
               handleAlgoLabComplete('BUBBLE_LAB', durationMs, { comparisons, swaps })
+            }
+          />
+        )}
+        {algoLabConfig.kind === 'BUBBLE_FREE_LAB' && (
+          <AlgoLabBubbleSortFreeSwapGame
+            key={`algo-bubble-free-${gameCode}-${gameRunKey}`}
+            onComplete={({ swaps, bestSwaps, durationMs }) =>
+              handleAlgoLabComplete('BUBBLE_FREE_LAB', durationMs, { swaps, bestSwaps })
             }
           />
         )}
